@@ -1,0 +1,19 @@
+name: xproject_generator
+description: CLI and library to scaffold Flutter applications and feature modules using opinionated GetX and Riverpod templates.
+version: 1.0.0
+# repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+# Add regular dependencies here.
+dependencies:
+  args: ^2.4.2
+  interact: ^2.2.0
+  mason_logger: ^0.2.14
+  path: ^1.9.0
+  recase: ^4.1.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
