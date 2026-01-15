@@ -1,4 +1,3 @@
-
 /// XProject Generator CLI
 ///
 /// A command-line tool to quickly scaffold new Flutter projects and add new features
@@ -44,12 +43,13 @@ import 'package:xproject_generator/xproject_generator.dart';
 /// [arguments]: Command-line arguments forwarded by the Dart runtime.
 void main(List<String> arguments) async {
   final parser = ArgParser()
-    ..addOption('feature', abbr: 'f', help: 'Generate a feature template inside the current Flutter project')
+    ..addOption('feature',
+        abbr: 'f',
+        help: 'Generate a feature template inside the current Flutter project')
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Show usage help')
     ..addFlag('version', abbr: 'v', negatable: false, help: 'Show version');
 
   parser.addCommand('create');
-    
 
   try {
     final results = parser.parse(arguments);
@@ -70,7 +70,7 @@ void main(List<String> arguments) async {
       final featureName = shortcutFeature.trim();
       final generator = FeatureGenerator();
       await generator.add(featureName);
-       exit(0);
+      exit(0);
     }
 
     final command = results.command;

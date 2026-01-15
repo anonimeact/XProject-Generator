@@ -630,11 +630,17 @@ abstract class ${pascal}Model with _\$${pascal}Model {
 
   /// Converts a string [input] to PascalCase.
   static String pascalCase(String input) {
-    final words = input.trim().split(RegExp(r'[^a-zA-Z0-9]+')).where((w) => w.isNotEmpty).toList();
+    final words = input
+        .trim()
+        .split(RegExp(r'[^a-zA-Z0-9]+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
 
     if (words.isEmpty) return '';
 
-    return words.map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase()).join();
+    return words
+        .map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase())
+        .join();
   }
 
   /// Returns the content for l10n.yaml localization config file.

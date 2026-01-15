@@ -8,7 +8,6 @@ import '../common_templates.dart';
 ///
 /// See README.md for more details.
 class GetxFeatureTemplate {
-
   /// Returns the Dart code for a GetX Binding class for a given [featureName].
   static String generalBinding(String featureName) {
     final pascal = CommonTemplates.pascalCase(featureName);

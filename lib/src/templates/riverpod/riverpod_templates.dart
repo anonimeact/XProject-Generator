@@ -5,7 +5,6 @@
 ///
 /// See README.md for more details.
 class RiverpodTemplates {
-
   static String themeProvider() {
     return '''
       /// Returns the Dart code for the ThemeNotifier and themeModeProvider.

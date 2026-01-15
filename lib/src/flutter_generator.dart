@@ -59,9 +59,14 @@ class FlutterGenerator {
     final pubspecPath = '${config.projectPath}/pubspec.yaml';
     final pubspecFile = File(pubspecPath);
 
-    final additionalDependencies = config.stateManagement == StateManagement.getx ? _getGetXDependencies() : _getRiverpodDependencies();
+    final additionalDependencies =
+        config.stateManagement == StateManagement.getx
+            ? _getGetXDependencies()
+            : _getRiverpodDependencies();
     final additionalDevDependencies =
-        config.stateManagement == StateManagement.getx ? '' : _getRiverpodDevDependencies();
+        config.stateManagement == StateManagement.getx
+            ? ''
+            : _getRiverpodDevDependencies();
     final firebaseDependencies = config.useFirebase
         ? '''
   firebase_analytics: ^12.1.0

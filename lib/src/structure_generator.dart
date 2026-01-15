@@ -77,6 +77,7 @@ class StructureGenerator {
       await envFile.writeAsString(encryptedContent);
     }
   }
+
   static String _generateEncryptedEnvTemplate(
     ProjectConfig config,
     String env,
@@ -99,7 +100,6 @@ class StructureGenerator {
   }
 
   static Future<void> _createAndroidFlavors(ProjectConfig config) async {
-
     final buildGradlePath = _androidBuildFile(config);
     final buildGradle = File(buildGradlePath);
 
@@ -198,7 +198,8 @@ class StructureGenerator {
     // 1) PATCH compileOptions {}
     // =========================
 
-    final compileOptionsRegex = RegExp(r'compileOptions\s*\{([\s\S]*?)\}', multiLine: true);
+    final compileOptionsRegex =
+        RegExp(r'compileOptions\s*\{([\s\S]*?)\}', multiLine: true);
 
     if (compileOptionsRegex.hasMatch(content)) {
       content = content.replaceFirstMapped(compileOptionsRegex, (match) {
@@ -206,7 +207,7 @@ class StructureGenerator {
 
         // if already has it, keep as is
         if (blockBody.contains('isCoreLibraryDesugaringEnabled')) {
-        /// Enable core library desugaring in Android build.gradle for Firebase support.
+          /// Enable core library desugaring in Android build.gradle for Firebase support.
           return match.group(0)!;
         }
 
@@ -272,11 +273,13 @@ dependencies {
 
     for (final env in ['development', 'staging', 'production']) {
       final configDir = Directory(path.join(iosPath, 'config', env));
-        /// Inject the desugar_jdk_libs dependency into the dependencies block of [content].
+
+      /// Inject the desugar_jdk_libs dependency into the dependencies block of [content].
       await configDir.create(recursive: true);
 
       // Create GoogleService-Info.plist for each environment
-      final plistFile = File(path.join(configDir.path, 'GoogleService-Info.plist'));
+      final plistFile =
+          File(path.join(configDir.path, 'GoogleService-Info.plist'));
       await plistFile.writeAsString(_getGoogleServicePlistTemplate(
         config.iosBundleIdForEnv(env),
       ));
@@ -291,7 +294,8 @@ dependencies {
     );
 
     final file = File(scriptPath);
-        /// Create iOS flavor configuration and GoogleService-Info.plist for each environment.
+
+    /// Create iOS flavor configuration and GoogleService-Info.plist for each environment.
     await file.writeAsString(CommonTemplates.firebaseSh());
 
     // IMPORTANT: make script executable
@@ -363,7 +367,8 @@ dependencies {
     await _createTasksJson(config, vscodeDir.path);
   }
 
-  static Future<void> _createLaunchJson(ProjectConfig config, String vscodePath) async {
+  static Future<void> _createLaunchJson(
+      ProjectConfig config, String vscodePath) async {
     final launchJson = {
       'version': '0.2.0',
       'configurations': [
@@ -372,11 +377,17 @@ dependencies {
           'request': 'launch',
           'type': 'dart',
           'program': 'lib/main_development.dart',
-          'args': ['--flavor', 'development', '--target', 'lib/main_development.dart']
+          'args': [
+            '--flavor',
+            'development',
+            '--target',
+            'lib/main_development.dart'
+          ]
         },
         {
           'name': '[STG] ${config.appDisplayName}',
-        /// Create VS Code configuration files (launch.json, tasks.json) for the project.
+
+          /// Create VS Code configuration files (launch.json, tasks.json) for the project.
           'request': 'launch',
           'type': 'dart',
           'program': 'lib/main_staging.dart',
@@ -387,8 +398,14 @@ dependencies {
           'request': 'launch',
           'type': 'dart',
           'program': 'lib/main_production.dart',
-          'args': ['--flavor', 'production', '--target', 'lib/main_production.dart']
-        /// Create .vscode/launch.json for the project.
+          'args': [
+            '--flavor',
+            'production',
+            '--target',
+            'lib/main_production.dart'
+          ]
+
+          /// Create .vscode/launch.json for the project.
         }
       ]
     };
@@ -397,7 +414,8 @@ dependencies {
     await launchFile.writeAsString(_formatJson(launchJson));
   }
 
-  static Future<void> _createTasksJson(ProjectConfig config, String vscodePath) async {
+  static Future<void> _createTasksJson(
+      ProjectConfig config, String vscodePath) async {
     final tasks = {
       'version': '2.0.0',
       'tasks': [
@@ -414,23 +432,47 @@ dependencies {
           'label': 'Synchronize Build Runners',
           'type': 'shell',
           'command': 'flutter',
-          'args': ['pub', 'run', 'build_runner', 'build', '--delete-conflicting-outputs'],
+          'args': [
+            'pub',
+            'run',
+            'build_runner',
+            'build',
+            '--delete-conflicting-outputs'
+          ],
           'problemMatcher': [],
           'group': {'kind': 'build', 'isDefault': true},
-          'detail': 'Run this task to synchronize freezed and other build runners actions files.'
+          'detail':
+              'Run this task to synchronize freezed and other build runners actions files.'
         },
         {
           'label': 'Build IPA - Production',
-        /// Create .vscode/tasks.json for the project.
+
+          /// Create .vscode/tasks.json for the project.
           'type': 'shell',
           'command': 'flutter',
-          'args': ['build', 'ipa', '--release', '--flavor', 'production', '-t', 'lib/main_production.dart']
+          'args': [
+            'build',
+            'ipa',
+            '--release',
+            '--flavor',
+            'production',
+            '-t',
+            'lib/main_production.dart'
+          ]
         },
         {
           'label': 'Build IPA - Staging',
           'type': 'shell',
           'command': 'flutter',
-          'args': ['build', 'ipa', '--release', '--flavor', 'staging', '-t', 'lib/main_staging.dart']
+          'args': [
+            'build',
+            'ipa',
+            '--release',
+            '--flavor',
+            'staging',
+            '-t',
+            'lib/main_staging.dart'
+          ]
         },
         {
           'label': 'Build APK - Production',
@@ -451,7 +493,16 @@ dependencies {
           'label': 'Build APK - Staging',
           'type': 'shell',
           'command': 'flutter',
-          'args': ['build', 'apk', '--split-per-abi', '--release', '--flavor', 'staging', '-t', 'lib/main_staging.dart']
+          'args': [
+            'build',
+            'apk',
+            '--split-per-abi',
+            '--release',
+            '--flavor',
+            'staging',
+            '-t',
+            'lib/main_staging.dart'
+          ]
         },
         {
           'label': 'Build APK - Development',
@@ -472,13 +523,29 @@ dependencies {
           'label': 'Build AppBundle - Production',
           'type': 'shell',
           'command': 'flutter',
-          'args': ['build', 'appbundle', '--release', '--flavor', 'production', '-t', 'lib/main_production.dart']
+          'args': [
+            'build',
+            'appbundle',
+            '--release',
+            '--flavor',
+            'production',
+            '-t',
+            'lib/main_production.dart'
+          ]
         },
         {
           'label': 'Build AppBundle - Staging',
           'type': 'shell',
           'command': 'flutter',
-          'args': ['build', 'appbundle', '--release', '--flavor', 'staging', '-t', 'lib/main_staging.dart']
+          'args': [
+            'build',
+            'appbundle',
+            '--release',
+            '--flavor',
+            'staging',
+            '-t',
+            'lib/main_staging.dart'
+          ]
         },
         {
           'label': 'Clean & Get Packages',
@@ -492,7 +559,13 @@ dependencies {
           'label': 'Run Development',
           'type': 'shell',
           'command': 'flutter',
-          'args': ['run', '--flavor', 'development', '-t', 'lib/main_development.dart']
+          'args': [
+            'run',
+            '--flavor',
+            'development',
+            '-t',
+            'lib/main_development.dart'
+          ]
         },
         {
           'label': 'Run Staging',
@@ -504,7 +577,13 @@ dependencies {
           'label': 'Run Production',
           'type': 'shell',
           'command': 'flutter',
-          'args': ['run', '--flavor', 'production', '-t', 'lib/main_production.dart']
+          'args': [
+            'run',
+            '--flavor',
+            'production',
+            '-t',
+            'lib/main_production.dart'
+          ]
         }
       ]
     };
@@ -524,7 +603,8 @@ dependencies {
 
     final iosRunnerPath = path.join(config.projectPath, 'ios', 'Runner');
 
-    final swiftAppDelegate = File(path.join(iosRunnerPath, 'AppDelegate.swift'));
+    final swiftAppDelegate =
+        File(path.join(iosRunnerPath, 'AppDelegate.swift'));
     final objcAppDelegate = File(path.join(iosRunnerPath, 'AppDelegate.m'));
 
     if (swiftAppDelegate.existsSync()) {
@@ -537,13 +617,13 @@ dependencies {
       return;
     }
 
-        /// Format a JSON [Map] as a pretty-printed string.
+    /// Format a JSON [Map] as a pretty-printed string.
     throw Exception(
       'Cannot find iOS AppDelegate. Expected AppDelegate.swift or AppDelegate.m inside ios/Runner',
     );
   }
 
-        /// Patch the iOS AppDelegate for Firebase support (Swift or Objective-C).
+  /// Patch the iOS AppDelegate for Firebase support (Swift or Objective-C).
   static Future<void> _patchSwiftAppDelegateForFirebase(File file) async {
     var content = await file.readAsString();
 
@@ -555,7 +635,8 @@ dependencies {
     }
 
     if (!content.contains('FirebaseApp.configure()')) {
-      final registerPattern = RegExp(r'GeneratedPluginRegistrant\.register\(with:\s*self\)\s*\n');
+      final registerPattern =
+          RegExp(r'GeneratedPluginRegistrant\.register\(with:\s*self\)\s*\n');
 
       if (registerPattern.hasMatch(content)) {
         content = content.replaceFirstMapped(
@@ -564,9 +645,11 @@ dependencies {
         );
       } else {
         content = content.replaceFirstMapped(
-          RegExp(r'func application\([^\)]*\)\s*->\s*Bool\s*\{\s*\n', multiLine: true),
+          RegExp(r'func application\([^\)]*\)\s*->\s*Bool\s*\{\s*\n',
+              multiLine: true),
           (m) => '${m.group(0)}    FirebaseApp.configure()\n',
         );
+
         /// Patch a Swift AppDelegate file for Firebase initialization.
       }
     }
@@ -583,7 +666,8 @@ dependencies {
       );
     }
     if (!content.contains('[FIRApp configure];')) {
-      final registerPattern = RegExp(r'\[GeneratedPluginRegistrant registerWithRegistry:self\];\s*\n');
+      final registerPattern = RegExp(
+          r'\[GeneratedPluginRegistrant registerWithRegistry:self\];\s*\n');
 
       if (registerPattern.hasMatch(content)) {
         content = content.replaceFirstMapped(
@@ -597,7 +681,8 @@ dependencies {
             multiLine: true,
           ),
           (m) => '${m.group(0)}  [FIRApp configure];\n',
-        /// Patch an Objective-C AppDelegate file for Firebase initialization.
+
+          /// Patch an Objective-C AppDelegate file for Firebase initialization.
         );
       }
     }

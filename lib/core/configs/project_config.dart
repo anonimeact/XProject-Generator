@@ -15,7 +15,6 @@ import 'package:recase/recase.dart';
 enum StateManagement { getx, riverpod }
 
 class ProjectConfig {
-
   ProjectConfig({
     required this.appName,
     required this.displayName,
@@ -24,7 +23,7 @@ class ProjectConfig {
     required this.stateManagement,
     required this.useFirebase,
   });
-  
+
   final String appName;
   final String displayName;
   final String androidPackage;
@@ -40,8 +39,7 @@ class ProjectConfig {
   String get appDisplayName => displayName;
 
   // Path
-  String get projectPath =>
-      path.join(Directory.current.path, appName);
+  String get projectPath => path.join(Directory.current.path, appName);
 
   // Environment configs
   String androidPackageForEnv(String env) {

@@ -1,4 +1,3 @@
-
 /// XProject Generator - Feature Generator
 ///
 /// Provides functionality to generate a new feature template in an existing Flutter project.
@@ -22,6 +21,7 @@ import 'src/file_generator.dart';
 /// Main class for generating new feature templates in an existing Flutter project.
 class FeatureGenerator {
   final Logger logger = Logger();
+
   /// Generate a new feature template with the given [featureName].
   ///
   /// Detects the state management used in the project and generates the appropriate template.
@@ -30,13 +30,15 @@ class FeatureGenerator {
     logger.info('\n📦 Generating new feature template...');
     final root = findFlutterProjectRoot();
     final currentStateManagement = await detectStateManagementFromProject(root);
-    await FileGenerator.generateFeature(stateManagement: currentStateManagement, featureName: featureName);
+    await FileGenerator.generateFeature(
+        stateManagement: currentStateManagement, featureName: featureName);
     logger.success('\n✅ $featureName template already generated!');
     await runBuildRunner(projectRoot: root);
   }
 
   /// Detect the state management (GetX or Riverpod) used in the project at [root].
-  static Future<StateManagement> detectStateManagementFromProject(Directory root) async {
+  static Future<StateManagement> detectStateManagementFromProject(
+      Directory root) async {
     final pubspecFile = File(path.join(root.path, 'pubspec.yaml'));
 
     if (!pubspecFile.existsSync()) {
@@ -46,7 +48,8 @@ class FeatureGenerator {
     final content = await pubspecFile.readAsString();
 
     final hasGet = RegExp(r'^\s*get:\s*', multiLine: true).hasMatch(content);
-    final hasRiverpod = RegExp(r'^\s*flutter_riverpod:\s*', multiLine: true).hasMatch(content);
+    final hasRiverpod =
+        RegExp(r'^\s*flutter_riverpod:\s*', multiLine: true).hasMatch(content);
 
     if (hasGet && !hasRiverpod) return StateManagement.getx;
     if (hasRiverpod && !hasGet) return StateManagement.riverpod;
@@ -54,7 +57,8 @@ class FeatureGenerator {
     // Kalau keduanya ada (possible), pakai rule tambahan
     if (hasGet && hasRiverpod) {
       // Prefer routing detection
-      final hasGetMaterialApp = await _hasTextInLib(root.path, 'GetMaterialApp');
+      final hasGetMaterialApp =
+          await _hasTextInLib(root.path, 'GetMaterialApp');
       if (hasGetMaterialApp) return StateManagement.getx;
 
       final hasGoRouter = await _hasTextInLib(root.path, 'GoRouter');
