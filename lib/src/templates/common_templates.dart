@@ -7,10 +7,59 @@ import '../../core/configs/project_config.dart';
 ///
 /// See README.md for more details.
 class CommonTemplates {
+  static String additionalFontSetting() {
+    return '''
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.otf
+        - asset: assets/fonts/Inter-Medium.otf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.otf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.otf
+          weight: 700''';
+  }
+
+  /// Color list
+  static String appColors() {
+    return '''
+import 'package:flutter/material.dart';
+
+class AppColor {
+  static const primary = Color(0xFF007FFF);
+  static const primaryLight = Color(0xFFE3F2FD);
+  static const primaryDark = Color(0xFF005BB5);
+  
+  static const secondary = Color(0xFF00B7EB);
+  static const accent = Color(0xFFFF7F50);
+  
+  static const bgLight = Color(0xFFF8FBFF);
+  static const bgDark = Color(0xFF0A192F);
+  static const surface = Color(0xFFFFFFFF);
+  
+  static const title = Color(0xFF1A202C);
+  static const body = Color(0xFF4A5568);
+  static const subtitle = Color(0xFF718096);
+  
+  static const success = Color(0xFF10B981);
+  static const warning = Color(0xFFF59E0B);
+  static const error = Color(0xFFEF4444);
+  
+  static const border = Color(0xFFE2E8F0);
+  static const inactive = Color(0xFFCBD5E0);
+  static const divider = Color(0xFFEDF2F7);
+}
+''';
+  }
+
   /// Returns the Dart code for the AppTheme class (light and dark themes).
   static String appTheme() {
     return '''
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'app_color.dart';
 
 class AppTheme {
   static ThemeData lightTheme() {
@@ -47,6 +96,53 @@ class AppTheme {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
+      ),
+      textTheme: const TextTheme(
+        labelLarge: TextStyle(
+          color: AppColor.title,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          fontFamily: 'Inter'
+        ),
+        titleLarge: TextStyle(
+          color: AppColor.title,
+          fontSize: 14,
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.w600
+        ),
+        titleMedium: TextStyle(
+          color: AppColor.title,
+          fontSize: 14,
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.w500
+        ),
+        titleSmall: TextStyle(
+          color: AppColor.title,
+          fontSize: 12,
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.w400
+        )
+      ),
+      appBarTheme: AppBarTheme(
+        centerTitle: true,
+        backgroundColor: AppColor.bgLight,
+        scrolledUnderElevation: 0,
+        titleTextStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: AppColor.title,
+          fontSize: 16,
+          fontFamily: 'Inter'
+        ),
+        iconTheme: IconThemeData(color: AppColor.bgLight),
+        elevation: 0,
+        actionsIconTheme: IconThemeData(color: AppColor.bgLight),
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: AppColor.bgLight,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        indicatorColor: AppColor.bgDark,
       ),
     );
   }
@@ -85,6 +181,53 @@ class AppTheme {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
+      ),
+      textTheme: const TextTheme(
+        labelLarge: TextStyle(
+          color: AppColor.title,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          fontFamily: 'Inter'
+        ),
+        titleLarge: TextStyle(
+          color: AppColor.title,
+          fontSize: 14,
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.w600
+        ),
+        titleMedium: TextStyle(
+          color: AppColor.title,
+          fontSize: 14,
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.w500
+        ),
+        titleSmall: TextStyle(
+          color: AppColor.title,
+          fontSize: 12,
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.w400
+        )
+      ),
+      appBarTheme: AppBarTheme(
+        centerTitle: true,
+        backgroundColor: AppColor.bgLight,
+        scrolledUnderElevation: 0,
+        titleTextStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: AppColor.title,
+          fontSize: 16,
+          fontFamily: 'Inter'
+        ),
+        iconTheme: IconThemeData(color: AppColor.bgLight),
+        elevation: 0,
+        actionsIconTheme: IconThemeData(color: AppColor.bgLight),
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: AppColor.bgLight,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        indicatorColor: AppColor.bgDark,
       ),
     );
   }
@@ -257,6 +400,9 @@ class App extends StatelessWidget {
         themeMode: ThemeMode.system,
         initialRoute: Routes.splash,
         getPages: AppPages.routes,
+        navigatorObservers: [
+          ShakeChuckerConfigs.navigatorObserver
+        ],
         localizationsDelegates: const [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
@@ -431,7 +577,7 @@ cp "\${GOOGLESERVICE_INFO_FILE}" "\${PLIST_DESTINATION}"
   }
 
   /// Returns the Dart code for the BaseConnection class, which extends DioExtended for API calls.
-  static String baseConnection() {
+  static String baseConnectionGetX() {
     return '''
 import 'package:dio_extended/diox.dart';
 
@@ -457,6 +603,40 @@ class BaseConnection extends DioExtended {
     final token = UserSessions.getToken();
     if (token == null) return {};
     return {'token': token};
+  }
+}
+''';
+  }
+
+  static String baseConnectionRiverpod() {
+    return '''
+import 'package:dio_extended/diox.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+import '../../sessions/user_session.dart';
+import '../config/env_config.dart';
+
+part 'base_connection.g.dart';
+
+@riverpod
+Future<BaseConnection> baseConnection(Ref ref) async {
+  return BaseConnection.create();
+}
+
+class BaseConnection extends DioExtended {
+  BaseConnection._internal(Map<String, String> headers) 
+    : super(baseUrl: EnvConfig.apiBaseUrl, headersAsync: Future.value(headers));
+
+  static Future<BaseConnection> create() async {
+    final headers = await _buildAuthHeaders();
+    return BaseConnection._internal(headers);
+  }
+
+  static Future<Map<String, String>> _buildAuthHeaders() async {
+    String token = UserSessions.getToken() ?? '';
+    return {
+      'token': 'Bearer \${token.toString()}',
+    };
   }
 }
 ''';
@@ -560,6 +740,88 @@ class UserSessions {
   static void deletUserData(){
     StorageHelper.clear();
   }
+}
+''';
+  }
+
+  /// TextStyle helper
+  static String textStyleHelperGetx() {
+    return '''
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import 'app_color.dart';
+
+TextStyle styleLarge({double? size = 14, Color? color, FontWeight? weight}) {
+  return Theme.of(Get.context!).textTheme.titleLarge!.copyWith(
+      fontSize: Get.width > 500 ? size! * 1.4 : size,
+      fontWeight: weight ?? FontWeight.bold,
+      color:
+          color ?? (Get.isDarkMode ? AppColor.bgLight : AppColor.title));
+}
+
+TextStyle styleMedium({double? size = 14, Color? color, FontWeight? weight}) {
+  return Theme.of(Get.context!).textTheme.titleMedium!.copyWith(
+      fontSize: Get.width > 500 ? size! * 1.4 : size,
+      fontWeight: weight ?? FontWeight.w600,
+      color:
+          color ?? (Get.isDarkMode ? AppColor.bgLight : AppColor.title));
+}
+
+TextStyle styleSmall({double? size = 14, Color? color, FontWeight? weight}) {
+  return Theme.of(Get.context!).textTheme.titleSmall!.copyWith(
+      fontSize: Get.width > 500 ? size! * 1.3 : size,
+      fontWeight: weight ?? FontWeight.normal,
+      color:
+          color ?? (Get.isDarkMode ? AppColor.bgLight : AppColor.title));
+}
+''';
+  }
+
+  static String textStyleHelperRiverpod() {
+    return '''
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+
+import 'app_color.dart';
+
+// Providers for isDarkMode dan width
+// Width wil adjust other text sized
+final isDarkModeProvider = StateProvider<bool>((ref) => false);
+final widthProvider = StateProvider<double>((ref) => 0);
+
+TextStyle styleLarge(WidgetRef ref, {double? size = 14, Color? color, FontWeight? weight}) {
+  final isDarkMode = ref.watch(isDarkModeProvider);
+  final width = ref.watch(widthProvider);
+
+  return TextStyle(
+    fontSize: width > 500 ? size! * 1.4 : size,
+    fontWeight: weight ?? FontWeight.bold,
+    color: color ?? (isDarkMode ? AppColor.bgLight : AppColor.title),
+  );
+}
+
+TextStyle styleMedium(WidgetRef ref, {double? size = 14, Color? color, FontWeight? weight}) {
+  final isDarkMode = ref.watch(isDarkModeProvider);
+  final width = ref.watch(widthProvider);
+
+  return TextStyle(
+    fontSize: width > 500 ? size! * 1.4 : size,
+    fontWeight: weight ?? FontWeight.w600,
+    color: color ?? (isDarkMode ? AppColor.bgLight : AppColor.title),
+  );
+}
+
+TextStyle styleSmall(WidgetRef ref, {double? size = 14, Color? color, FontWeight? weight}) {
+  final isDarkMode = ref.watch(isDarkModeProvider);
+  final width = ref.watch(widthProvider);
+
+  return TextStyle(
+    fontSize: width > 500 ? size! * 1.3 : size,
+    fontWeight: weight ?? FontWeight.normal,
+    color: color ?? (isDarkMode ? AppColor.bgLight : AppColor.title),
+  );
 }
 ''';
   }
@@ -808,6 +1070,27 @@ class NotificationService {
       details,
     );
   }
+}
+''';
+  }
+
+  static String globalApiResponse() {
+    return '''
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'global_api_response.freezed.dart';
+part 'global_api_response.g.dart';
+
+@freezed
+abstract class GlobalApiResponse with _\$GlobalApiResponse {
+  const factory GlobalApiResponse({
+    int? statusCode,
+    String? message,
+    dynamic data,
+  }) = _GlobalApiResponse;
+
+  factory GlobalApiResponse.fromJson(Map<String, dynamic> json) =>
+      _\$GlobalApiResponseFromJson(json);
 }
 ''';
   }

@@ -32,15 +32,11 @@ class FlutterGenerator {
     );
 
     if (result.exitCode != 0) {
-      throw Exception(
-        'Failed to create Flutter project:\n${result.stderr}',
-      );
+      throw Exception('Failed to create Flutter project:\n${result.stderr}');
     }
 
     // ✅ SEKARANG PATH INI VALID
-    final androidDir = Directory(
-      path.join(config.projectPath, 'android'),
-    );
+    final androidDir = Directory(path.join(config.projectPath, 'android'));
 
     if (!androidDir.existsSync()) {
       throw Exception(
@@ -61,12 +57,12 @@ class FlutterGenerator {
 
     final additionalDependencies =
         config.stateManagement == StateManagement.getx
-            ? _getGetXDependencies()
-            : _getRiverpodDependencies();
+        ? _getGetXDependencies()
+        : _getRiverpodDependencies();
     final additionalDevDependencies =
         config.stateManagement == StateManagement.getx
-            ? ''
-            : _getRiverpodDevDependencies();
+        ? ''
+        : _getRiverpodDevDependencies();
     final firebaseDependencies = config.useFirebase
         ? '''
   firebase_analytics: ^12.1.0
@@ -77,7 +73,8 @@ class FlutterGenerator {
   '''
         : '';
 
-    final content = '''
+    final content =
+        '''
 name: ${config.appName}
 description: A new Flutter project
 publish_to: 'none'
@@ -90,7 +87,7 @@ dependencies:
   flutter:
     sdk: flutter
 $additionalDependencies
-  dio_extended: ^1.0.12
+  dio_extended: ^1.0.15
 $firebaseDependencies
   flutter_localizations:
     sdk: flutter

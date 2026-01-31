@@ -35,6 +35,12 @@ class StructureGenerator {
     // Create VS Code configurations
     await _createVSCodeConfigs(config);
 
+    // Add fonts to pubspec.yaml
+    await addFontsToPubspec(config);
+
+    // Copy font files
+    await copyFontFiles(config);
+
     await setupIOSFirebaseAppDelegate(config);
   }
 
@@ -70,12 +76,31 @@ class StructureGenerator {
     for (final env in config.environments) {
       final encryptedContent = _generateEncryptedEnvTemplate(config, env);
 
-      final envFile = File(
-        path.join(config.projectPath, '.env.$env'),
-      );
+      final envFile = File(path.join(config.projectPath, '.env.$env'));
 
       await envFile.writeAsString(encryptedContent);
     }
+  }
+
+  /// Add fonts to pubspec.yaml from additionalFontSettings.
+
+  static Future<void> addFontsToPubspec(ProjectConfig config) async {
+    final pubspecPath = path.join(config.projectPath, 'pubspec.yaml');
+    final pubspecFile = File(pubspecPath);
+
+    if (!pubspecFile.existsSync()) {
+      throw Exception('pubspec.yaml not found at $pubspecPath');
+    }
+
+    var content = await pubspecFile.readAsString();
+
+    if (!content.contains('flutter:')) {
+      content += '\nflutter:\n';
+    }
+
+    /// Add from CommonTemplates.additionalFontSettings()
+    content += CommonTemplates.additionalFontSetting();
+    await pubspecFile.writeAsString(content);
   }
 
   static String _generateEncryptedEnvTemplate(
@@ -111,7 +136,8 @@ class StructureGenerator {
     var content = await buildGradle.readAsString();
 
     // Add flavor dimensions and flavors
-    final flavorConfig = '''
+    final flavorConfig =
+        '''
     flavorDimensions += "environment"
     
     productFlavors {
@@ -144,16 +170,15 @@ class StructureGenerator {
 
     // Create google-services.json directories
     for (final env in ['development', 'staging', 'production']) {
-      final dir = Directory(path.join(
-        config.projectPath,
-        'android/app/src/$env',
-      ));
+      final dir = Directory(
+        path.join(config.projectPath, 'android/app/src/$env'),
+      );
       await dir.create(recursive: true);
 
       final jsonFile = File(path.join(dir.path, 'google-services.json'));
-      await jsonFile.writeAsString(_getGoogleServicesTemplate(
-        config.androidPackageForEnv(env),
-      ));
+      await jsonFile.writeAsString(
+        _getGoogleServicesTemplate(config.androidPackageForEnv(env)),
+      );
     }
   }
 
@@ -162,11 +187,7 @@ class StructureGenerator {
   /// Returns the path to the first existing file among `build.gradle` and `build.gradle.kts`.
   /// Throws [Exception] if none is found.
   static String _androidBuildFile(ProjectConfig config) {
-    final androidAppDir = path.join(
-      config.projectPath,
-      'android',
-      'app',
-    );
+    final androidAppDir = path.join(config.projectPath, 'android', 'app');
 
     final gradle = File(path.join(androidAppDir, 'build.gradle'));
     final gradleKts = File(path.join(androidAppDir, 'build.gradle.kts'));
@@ -198,8 +219,10 @@ class StructureGenerator {
     // 1) PATCH compileOptions {}
     // =========================
 
-    final compileOptionsRegex =
-        RegExp(r'compileOptions\s*\{([\s\S]*?)\}', multiLine: true);
+    final compileOptionsRegex = RegExp(
+      r'compileOptions\s*\{([\s\S]*?)\}',
+      multiLine: true,
+    );
 
     if (compileOptionsRegex.hasMatch(content)) {
       content = content.replaceFirstMapped(compileOptionsRegex, (match) {
@@ -212,7 +235,8 @@ class StructureGenerator {
         }
 
         // Insert inside compileOptions block
-        final updatedBody = '$blockBody'
+        final updatedBody =
+            '$blockBody'
             '\n        isCoreLibraryDesugaringEnabled = true\n';
 
         return 'compileOptions {$updatedBody    }';
@@ -278,20 +302,17 @@ dependencies {
       await configDir.create(recursive: true);
 
       // Create GoogleService-Info.plist for each environment
-      final plistFile =
-          File(path.join(configDir.path, 'GoogleService-Info.plist'));
-      await plistFile.writeAsString(_getGoogleServicePlistTemplate(
-        config.iosBundleIdForEnv(env),
-      ));
+      final plistFile = File(
+        path.join(configDir.path, 'GoogleService-Info.plist'),
+      );
+      await plistFile.writeAsString(
+        _getGoogleServicePlistTemplate(config.iosBundleIdForEnv(env)),
+      );
     }
   }
 
   static Future<void> _createIOSFirebaseScript(ProjectConfig config) async {
-    final scriptPath = path.join(
-      config.projectPath,
-      'ios',
-      'firebase.sh',
-    );
+    final scriptPath = path.join(config.projectPath, 'ios', 'firebase.sh');
 
     final file = File(scriptPath);
 
@@ -368,7 +389,9 @@ dependencies {
   }
 
   static Future<void> _createLaunchJson(
-      ProjectConfig config, String vscodePath) async {
+    ProjectConfig config,
+    String vscodePath,
+  ) async {
     final launchJson = {
       'version': '0.2.0',
       'configurations': [
@@ -381,8 +404,8 @@ dependencies {
             '--flavor',
             'development',
             '--target',
-            'lib/main_development.dart'
-          ]
+            'lib/main_development.dart',
+          ],
         },
         {
           'name': '[STG] ${config.appDisplayName}',
@@ -391,7 +414,7 @@ dependencies {
           'request': 'launch',
           'type': 'dart',
           'program': 'lib/main_staging.dart',
-          'args': ['--flavor', 'staging', '--target', 'lib/main_staging.dart']
+          'args': ['--flavor', 'staging', '--target', 'lib/main_staging.dart'],
         },
         {
           'name': config.appDisplayName,
@@ -402,12 +425,12 @@ dependencies {
             '--flavor',
             'production',
             '--target',
-            'lib/main_production.dart'
-          ]
+            'lib/main_production.dart',
+          ],
 
           /// Create .vscode/launch.json for the project.
-        }
-      ]
+        },
+      ],
     };
 
     final launchFile = File(path.join(vscodePath, 'launch.json'));
@@ -415,7 +438,9 @@ dependencies {
   }
 
   static Future<void> _createTasksJson(
-      ProjectConfig config, String vscodePath) async {
+    ProjectConfig config,
+    String vscodePath,
+  ) async {
     final tasks = {
       'version': '2.0.0',
       'tasks': [
@@ -426,7 +451,7 @@ dependencies {
           'args': ['gen-l10n'],
           'group': {'kind': 'build', 'isDefault': true},
           'presentation': {'reveal': 'silent', 'panel': 'shared'},
-          'detail': 'Generate resources using gen-l10n.'
+          'detail': 'Generate resources using gen-l10n.',
         },
         {
           'label': 'Synchronize Build Runners',
@@ -437,12 +462,12 @@ dependencies {
             'run',
             'build_runner',
             'build',
-            '--delete-conflicting-outputs'
+            '--delete-conflicting-outputs',
           ],
           'problemMatcher': [],
           'group': {'kind': 'build', 'isDefault': true},
           'detail':
-              'Run this task to synchronize freezed and other build runners actions files.'
+              'Run this task to synchronize freezed and other build runners actions files.',
         },
         {
           'label': 'Build IPA - Production',
@@ -457,8 +482,8 @@ dependencies {
             '--flavor',
             'production',
             '-t',
-            'lib/main_production.dart'
-          ]
+            'lib/main_production.dart',
+          ],
         },
         {
           'label': 'Build IPA - Staging',
@@ -471,8 +496,8 @@ dependencies {
             '--flavor',
             'staging',
             '-t',
-            'lib/main_staging.dart'
-          ]
+            'lib/main_staging.dart',
+          ],
         },
         {
           'label': 'Build APK - Production',
@@ -486,8 +511,8 @@ dependencies {
             '--flavor',
             'production',
             '-t',
-            'lib/main_production.dart'
-          ]
+            'lib/main_production.dart',
+          ],
         },
         {
           'label': 'Build APK - Staging',
@@ -501,8 +526,8 @@ dependencies {
             '--flavor',
             'staging',
             '-t',
-            'lib/main_staging.dart'
-          ]
+            'lib/main_staging.dart',
+          ],
         },
         {
           'label': 'Build APK - Development',
@@ -516,8 +541,8 @@ dependencies {
             '--flavor',
             'development',
             '-t',
-            'lib/main_development.dart'
-          ]
+            'lib/main_development.dart',
+          ],
         },
         {
           'label': 'Build AppBundle - Production',
@@ -530,8 +555,8 @@ dependencies {
             '--flavor',
             'production',
             '-t',
-            'lib/main_production.dart'
-          ]
+            'lib/main_production.dart',
+          ],
         },
         {
           'label': 'Build AppBundle - Staging',
@@ -544,8 +569,8 @@ dependencies {
             '--flavor',
             'staging',
             '-t',
-            'lib/main_staging.dart'
-          ]
+            'lib/main_staging.dart',
+          ],
         },
         {
           'label': 'Clean & Get Packages',
@@ -553,7 +578,7 @@ dependencies {
           'command': 'flutter',
           'args': ['clean'],
           'dependsOn': [],
-          'problemMatcher': []
+          'problemMatcher': [],
         },
         {
           'label': 'Run Development',
@@ -564,14 +589,14 @@ dependencies {
             '--flavor',
             'development',
             '-t',
-            'lib/main_development.dart'
-          ]
+            'lib/main_development.dart',
+          ],
         },
         {
           'label': 'Run Staging',
           'type': 'shell',
           'command': 'flutter',
-          'args': ['run', '--flavor', 'staging', '-t', 'lib/main_staging.dart']
+          'args': ['run', '--flavor', 'staging', '-t', 'lib/main_staging.dart'],
         },
         {
           'label': 'Run Production',
@@ -582,10 +607,10 @@ dependencies {
             '--flavor',
             'production',
             '-t',
-            'lib/main_production.dart'
-          ]
-        }
-      ]
+            'lib/main_production.dart',
+          ],
+        },
+      ],
     };
 
     final tasksFile = File(path.join(vscodePath, 'tasks.json'));
@@ -603,8 +628,9 @@ dependencies {
 
     final iosRunnerPath = path.join(config.projectPath, 'ios', 'Runner');
 
-    final swiftAppDelegate =
-        File(path.join(iosRunnerPath, 'AppDelegate.swift'));
+    final swiftAppDelegate = File(
+      path.join(iosRunnerPath, 'AppDelegate.swift'),
+    );
     final objcAppDelegate = File(path.join(iosRunnerPath, 'AppDelegate.m'));
 
     if (swiftAppDelegate.existsSync()) {
@@ -635,8 +661,9 @@ dependencies {
     }
 
     if (!content.contains('FirebaseApp.configure()')) {
-      final registerPattern =
-          RegExp(r'GeneratedPluginRegistrant\.register\(with:\s*self\)\s*\n');
+      final registerPattern = RegExp(
+        r'GeneratedPluginRegistrant\.register\(with:\s*self\)\s*\n',
+      );
 
       if (registerPattern.hasMatch(content)) {
         content = content.replaceFirstMapped(
@@ -645,8 +672,10 @@ dependencies {
         );
       } else {
         content = content.replaceFirstMapped(
-          RegExp(r'func application\([^\)]*\)\s*->\s*Bool\s*\{\s*\n',
-              multiLine: true),
+          RegExp(
+            r'func application\([^\)]*\)\s*->\s*Bool\s*\{\s*\n',
+            multiLine: true,
+          ),
           (m) => '${m.group(0)}    FirebaseApp.configure()\n',
         );
 
@@ -667,7 +696,8 @@ dependencies {
     }
     if (!content.contains('[FIRApp configure];')) {
       final registerPattern = RegExp(
-          r'\[GeneratedPluginRegistrant registerWithRegistry:self\];\s*\n');
+        r'\[GeneratedPluginRegistrant registerWithRegistry:self\];\s*\n',
+      );
 
       if (registerPattern.hasMatch(content)) {
         content = content.replaceFirstMapped(
@@ -676,10 +706,7 @@ dependencies {
         );
       } else {
         content = content.replaceFirstMapped(
-          RegExp(
-            r'didFinishLaunchingWithOptions[^{]*\{\s*\n',
-            multiLine: true,
-          ),
+          RegExp(r'didFinishLaunchingWithOptions[^{]*\{\s*\n', multiLine: true),
           (m) => '${m.group(0)}  [FIRApp configure];\n',
 
           /// Patch an Objective-C AppDelegate file for Firebase initialization.
@@ -688,5 +715,39 @@ dependencies {
     }
 
     await file.writeAsString(content);
+  }
+
+  /// Copy font files to the project assets folder.
+  static Future<void> copyFontFiles(ProjectConfig config) async {
+    // Explicitly set the source path to the CLI library's assets/fonts directory
+    final fontsSourcePath = path.join(
+      path.dirname(Platform.script.toFilePath()), // Base path of the CLI script
+      '..', // Navigate to the project root
+      'assets',
+      'fonts',
+    );
+
+    // Destination path points to the generated project's assets/fonts directory
+    final fontsDestinationPath = path.join(
+      config.projectPath,
+      'assets',
+      'fonts',
+    );
+
+    final sourceDir = Directory(fontsSourcePath);
+    if (!sourceDir.existsSync()) {
+      throw Exception('Source fonts directory not found at $fontsSourcePath');
+    }
+
+    await for (final file in sourceDir.list(recursive: true)) {
+      if (file is File) {
+        final relativePath = path.relative(file.path, from: fontsSourcePath);
+        final destinationFile = File(
+          path.join(fontsDestinationPath, relativePath),
+        );
+        await destinationFile.create(recursive: true);
+        await file.copy(destinationFile.path);
+      }
+    }
   }
 }

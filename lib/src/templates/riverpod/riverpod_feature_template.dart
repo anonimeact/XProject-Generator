@@ -2,13 +2,42 @@ import '../../../core/configs/project_config.dart';
 import '../common_templates.dart';
 
 class RiverpodFeatureTemplate {
+  static String datasourceRefxExt() {
+    return '''
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../services/base_connection.dart';
+
+extension DatasourceRefX on Ref {
+  Future<T> makeDatasource<T>(T Function(BaseConnection conn) builder) async {
+    final connection = await watch(baseConnectionProvider.future);
+    return builder(connection);
+  }
+}
+''';
+  }
+
   static String generalDataSource(String featureName) {
     final pascal = CommonTemplates.pascalCase(featureName);
-
     return '''
+import 'package:dio_extended/models/api_result.dart';
+
+import '../../../../core/models/global_api_response.dart';
+import '../../../../core/services/base_connection.dart';
+
 class ${pascal}Datasources {
-  Future<void> exampleCall() async {
-    // TODO: integrate with API
+  /// Injected base connection
+  /// You can use this to make API calls
+  /// See: core/services/base_connection.dart
+  final BaseConnection _connection;
+  ${pascal}Datasources(this._connection);
+
+  Future<ApiResult<GlobalApiResponse>> yourFunction({required String a}) async {
+    final response = await _connection.callApiRequest(
+      request: () => _connection.post('your_url', body: {'a': a}),
+      parseData: (data) => GlobalApiResponse.fromJson(data),
+    );
+    return response;
   }
 }
 ''';
@@ -19,17 +48,37 @@ class ${pascal}Datasources {
     final snake = featureName.toLowerCase();
 
     return '''
+import 'package:dio_extended/models/api_result.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+import '../../../../core/extensions/datasource_refx.dart';
+import '../../../../core/models/global_api_response.dart';
+import '../../data/datasources/${snake}_datasources.dart';
 
 part '${snake}_provider.g.dart';
 
 @riverpod
-class ${pascal}Notifier extends _\$${pascal}Notifier {
-  @override
-  int build() => 0;
+Future<${pascal}Datasources> ${snake}Datasource(Ref ref) async {
+  return ref.makeDatasource((connection) => ${pascal}Datasources(connection));
+}
 
-  void increment() {
-    state++;
+@riverpod
+class ${pascal}Controller extends _\$${pascal}Controller {
+  @override
+  AsyncValue<ApiResult<GlobalApiResponse>> build() {
+    return AsyncData(ApiResult<GlobalApiResponse>.idle());
+  }
+  Future<void> yourFunction({required String a}) async {
+      state = const AsyncLoading();
+
+      final datasource = await ref.read(${snake}DatasourceProvider.future);
+      if (!ref.mounted) return;
+
+      final result = await AsyncValue.guard(() => datasource.yourFunction(a: a));
+
+      if (!ref.mounted) return;
+
+      state = result;
   }
 }
 ''';
@@ -50,12 +99,29 @@ class ${pascal}View extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final _ = ref.watch(${snake}Provider);
+    final ${snake}State = ref.watch(${snake}ControllerProvider);
+
+    ref.listen(${snake}ControllerProvider, (_, next) {
+      next.whenOrNull(
+        data: (data) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Success')),
+          );
+        },
+        error: (err, _) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: \$err')),
+          );
+        },
+      );
+    });
 
     return Scaffold(
       appBar: AppBar(title: const Text('$pascal')),
       body: Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Text('This is Profile View')]),
+        child: ${snake}State.isLoading
+            ? const CircularProgressIndicator()
+            : Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Text('This is $pascal View')]),
       ),
     );
   }
@@ -64,7 +130,7 @@ class ${pascal}View extends ConsumerWidget {
   }
 
   /// ==== Splash Feature Template ====
-  static String splashNotifier(ProjectConfig config) {
+  static String splashProvider(ProjectConfig config) {
     return '''
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 ${config.useFirebase ? '''
@@ -72,10 +138,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/services/firebase/firebase_service.dart';
 ''' : ''}
 
-part 'splash_notifier.g.dart';
+part 'splash_provider.g.dart';
 
 @riverpod
-class SplashNotifier extends _\$SplashNotifier {
+class SplashProcess extends _\$SplashProcess {
   @override
   Future<void> build() async {
     await _start();
@@ -110,15 +176,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../routes/routes.dart';
-import '../providers/splash_notifier.dart';
+import '../providers/splash_provider.dart';
 
 class SplashView extends ConsumerWidget {
   const SplashView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(splashProvider);
-    ref.listen(splashProvider, (_, next) {
+    ref.watch(splashProcessProvider);
+    ref.listen(splashProcessProvider, (_, next) {
       next.whenOrNull(
         data: (_) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -274,12 +340,12 @@ class LoginRemoteDatasource {
 ''';
   }
 
-  static String loginNotifier() {
+  static String loginProvider() {
     return '''
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-// Pastikan nama file sesuai, misal: login_notifier.dart
-part 'login_notifier.g.dart'; 
+// Pastikan nama file sesuai, misal: login_provider.dart
+part 'login_provider.g.dart'; 
 
 @riverpod
 class LoginNotifier extends _\$LoginNotifier {
@@ -306,7 +372,6 @@ class LoginNotifier extends _\$LoginNotifier {
 
   static String loginView() {
     return '''
-import 'package:app_test/routes/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -314,8 +379,9 @@ import 'package:xwidgets_pack/utils/x_form_validators.dart';
 import 'package:xwidgets_pack/xwidgets.dart';
 
 import '../../../../core/l10n/string_resources.dart';
+import '../../../../routes/routes.dart';
 import '../providers/login_form_provider.dart';
-import '../providers/login_notifier.dart';
+import '../providers/login_provider.dart';
 
 class LoginView extends ConsumerStatefulWidget {
   const LoginView({super.key});
@@ -418,12 +484,12 @@ class _LoginViewState extends ConsumerState<LoginView> {
 
   static String homeView() {
     return '''
-import 'package:app_test/core/l10n/locale_provider.dart';
-import 'package:app_test/theme/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/l10n/locale_provider.dart';
 import '../../../../core/l10n/string_resources.dart';
+import '../../../../theme/theme_provider.dart';
 
 class HomeView extends ConsumerWidget {
   const HomeView({super.key});

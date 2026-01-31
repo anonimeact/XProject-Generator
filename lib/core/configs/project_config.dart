@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:path/path.dart' as path;
-import 'package:recase/recase.dart';
 
 // If there are additional files in core/configs, add similar documentation comments at the top.
 /// XProject Generator - Project Configuration
@@ -31,10 +30,6 @@ class ProjectConfig {
   final StateManagement stateManagement;
   final bool useFirebase;
 
-  // Name variants (derived from appName)
-  String get appNamePascal => ReCase(appName).pascalCase;
-  String get appNameCamel => ReCase(appName).camelCase;
-
   // Display
   String get appDisplayName => displayName;
 
@@ -52,6 +47,9 @@ class ProjectConfig {
     return '$iosBundleId.$env';
   }
 
-  List<String> get environments =>
-      const ['development', 'staging', 'production'];
+  List<String> get environments => const [
+    'development',
+    'staging',
+    'production',
+  ];
 }

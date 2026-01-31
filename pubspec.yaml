@@ -5,18 +5,17 @@ homepage: https://github.com/anonimeact/XProject-Generator
 repository: https://github.com/anonimeact/XProject-Generator
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.10.0'
 
 executables:
   xproject: xproject
 
 # Add regular dependencies here.
 dependencies:
-  args: ^2.4.2
+  args: ^2.7.0
   interact: ^2.2.0
-  mason_logger: ^0.2.14
-  path: ^1.9.0
-  recase: ^4.1.0
+  mason_logger: ^0.3.3
+  path: ^1.9.1
 
 dev_dependencies:
   lints: ^6.0.0

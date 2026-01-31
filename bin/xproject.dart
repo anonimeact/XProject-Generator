@@ -43,9 +43,11 @@ import 'package:xproject_generator/xproject_generator.dart';
 /// [arguments]: Command-line arguments forwarded by the Dart runtime.
 void main(List<String> arguments) async {
   final parser = ArgParser()
-    ..addOption('feature',
-        abbr: 'f',
-        help: 'Generate a feature template inside the current Flutter project')
+    ..addOption(
+      'feature',
+      abbr: 'f',
+      help: 'Generate a feature template inside the current Flutter project',
+    )
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Show usage help')
     ..addFlag('version', abbr: 'v', negatable: false, help: 'Show version');
 

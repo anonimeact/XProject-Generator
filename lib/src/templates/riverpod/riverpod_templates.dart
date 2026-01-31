@@ -7,7 +7,6 @@
 class RiverpodTemplates {
   static String themeProvider() {
     return '''
-      /// Returns the Dart code for the ThemeNotifier and themeModeProvider.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -51,7 +50,7 @@ abstract class Routes {
 
   static String appRouter() {
     return '''
-      /// Returns the Dart code for the appRouter GoRouter instance.
+import 'package:dio_extended/diox.dart';
 import 'package:go_router/go_router.dart';
 import '../features/home/presentation/views/home_view.dart';
 import '../features/login/presentation/views/login_view.dart';
@@ -60,6 +59,9 @@ import 'routes.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: Routes.splash,
+  observers: [
+    ShakeChuckerConfigs.navigatorObserver
+  ],
   routes: [
     GoRoute(
       path: Routes.splash,

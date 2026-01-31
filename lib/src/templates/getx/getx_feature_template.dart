@@ -8,6 +8,8 @@ import '../common_templates.dart';
 ///
 /// See README.md for more details.
 class GetxFeatureTemplate {
+  /// ==== General Feature Template ====
+
   /// Returns the Dart code for a GetX Binding class for a given [featureName].
   static String generalBinding(String featureName) {
     final pascal = CommonTemplates.pascalCase(featureName);
@@ -104,9 +106,19 @@ class ${pascal}View extends GetView<${pascal}Controller> {
     final pascal = CommonTemplates.pascalCase(featureName);
 
     return '''
-import '../../../core/services/base_connection.dart';
+import 'package:dio_extended/models/api_result.dart';
 
-class ${pascal}Provider extends BaseConnection {}
+import '../../../../core/services/base_connection.dart';
+import '../../../../core/models/global_api_response.dart';
+
+class ${pascal}Provider extends BaseConnection {
+    Future<ApiResult<GlobalApiResponse>> ${featureName}Data(dynamic body) async {
+    return callApiRequest<GlobalApiResponse>(
+      request: () => post('/api/$featureName', body: body),
+      parseData: (data) => GlobalApiResponse.fromJson(data),
+    );
+  }
+}
 ''';
   }
 

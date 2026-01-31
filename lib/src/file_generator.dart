@@ -26,7 +26,9 @@ class FileGenerator {
 
   /// Generate main entry files (main_development.dart, main_staging.dart, main_production.dart) in [libPath] for each environment.
   static Future<void> _generateMainFiles(
-      String libPath, ProjectConfig config) async {
+    String libPath,
+    ProjectConfig config,
+  ) async {
     for (final env in ['development', 'staging', 'production']) {
       await _writeFile(
         path.join(libPath, 'main_$env.dart'),
@@ -82,28 +84,23 @@ class FileGenerator {
   }
 
   /// Generate GetX feature files for [feature].
-  static Future<void> _generateGetXFeature(
-    String feature,
-  ) async {
+  static Future<void> _generateGetXFeature(String feature) async {
     final rootDir = findProjectRoot();
-    final basePath = path.join(
-      rootDir.path,
-      'lib',
-      'features',
-      feature,
-    );
+    final basePath = path.join(rootDir.path, 'lib', 'features', feature);
 
     final files = {
       '$feature/bindings/${feature}_binding.dart':
           GetxFeatureTemplate.generalBinding(feature),
       '$feature/controllers/${feature}_controller.dart':
           GetxFeatureTemplate.generalController(feature),
-      '$feature/views/${feature}_view.dart':
-          GetxFeatureTemplate.generalView(feature),
+      '$feature/views/${feature}_view.dart': GetxFeatureTemplate.generalView(
+        feature,
+      ),
       '$feature/providers/${feature}_provider.dart':
           GetxFeatureTemplate.generalProvider(feature),
-      '$feature/models/${feature}_model.dart':
-          CommonTemplates.freezedModel(feature),
+      '$feature/models/${feature}_model.dart': CommonTemplates.freezedModel(
+        feature,
+      ),
     };
 
     for (final entry in files.entries) {
@@ -114,9 +111,7 @@ class FileGenerator {
   }
 
   /// Generate Riverpod feature files for [feature].
-  static Future<void> _generateRiverpodFeature(
-    String feature,
-  ) async {
+  static Future<void> _generateRiverpodFeature(String feature) async {
     final rootDir = findProjectRoot();
     final basePath = path.join(rootDir.path, 'lib', 'features');
 
@@ -140,7 +135,9 @@ class FileGenerator {
 
   /// Generate all GetX-specific files for a new project in [libPath] using [config].
   static Future<void> _generateGetXFiles(
-      String libPath, ProjectConfig config) async {
+    String libPath,
+    ProjectConfig config,
+  ) async {
     // App routes
     await _writeFile(
       path.join(libPath, 'routes/app_routes.dart'),
@@ -220,6 +217,11 @@ class FileGenerator {
       path.join(libPath, 'sessions/user_session.dart'),
       CommonTemplates.userSessionsGetx(),
     );
+
+    await _writeFile(
+      path.join(libPath, 'theme/text_style.dart'),
+      CommonTemplates.textStyleHelperGetx(),
+    );
   }
 
   /// Generate all Riverpod-specific files for a new project in [libPath] using [config].
@@ -248,11 +250,19 @@ class FileGenerator {
       RiverpodTemplates.routes(),
     );
 
+    // Extensions
+    await _writeFile(
+      path.join(libPath, 'core/extensions/datasource_refx.dart'),
+      RiverpodFeatureTemplate.datasourceRefxExt(),
+    );
+
     // Features - Splash
     await _writeFile(
-      path.join(libPath,
-          'features/splash/presentation/providers/splash_notifier.dart'),
-      RiverpodFeatureTemplate.splashNotifier(config),
+      path.join(
+        libPath,
+        'features/splash/presentation/providers/splash_provider.dart',
+      ),
+      RiverpodFeatureTemplate.splashProvider(config),
     );
     await _writeFile(
       path.join(libPath, 'features/splash/presentation/views/splash_view.dart'),
@@ -276,28 +286,29 @@ class FileGenerator {
     await _writeFile(
       path.join(
         libPath,
-        'features/login/presentation/providers/login_notifier.dart',
+        'features/login/presentation/providers/login_provider.dart',
       ),
-      RiverpodFeatureTemplate.loginNotifier(),
+      RiverpodFeatureTemplate.loginProvider(),
     );
 
     await _writeFile(
-      path.join(
-        libPath,
-        'features/login/presentation/views/login_view.dart',
-      ),
+      path.join(libPath, 'features/login/presentation/views/login_view.dart'),
       RiverpodFeatureTemplate.loginView(),
     );
 
     await _writeFile(
       path.join(
-          libPath, 'features/login/presentation/views/login_form_fields.dart'),
+        libPath,
+        'features/login/presentation/views/login_form_fields.dart',
+      ),
       RiverpodFeatureTemplate.loginFormField(),
     );
 
     await _writeFile(
-      path.join(libPath,
-          'features/login/presentation/providers/login_form_provider.dart'),
+      path.join(
+        libPath,
+        'features/login/presentation/providers/login_form_provider.dart',
+      ),
       RiverpodFeatureTemplate.loginFormProvider(),
     );
 
@@ -308,7 +319,9 @@ class FileGenerator {
     );
     await _writeFile(
       path.join(
-          libPath, 'features/home/presentation/providers/home_provider.dart'),
+        libPath,
+        'features/home/presentation/providers/home_provider.dart',
+      ),
       RiverpodFeatureTemplate.generalProvider('home'),
     );
     await _writeFile(
@@ -318,13 +331,19 @@ class FileGenerator {
 
     await _writeFile(
       path.join(
-          libPath, 'features/home/data/datasources/home_datasources.dart'),
+        libPath,
+        'features/home/data/datasources/home_datasources.dart',
+      ),
       RiverpodFeatureTemplate.generalDataSource('home'),
     );
 
     await _writeFile(
       path.join(libPath, 'sessions/user_session.dart'),
       CommonTemplates.userSessionsRiverpod(),
+    );
+    await _writeFile(
+      path.join(libPath, 'theme/text_style.dart'),
+      CommonTemplates.textStyleHelperRiverpod(),
     );
   }
 
@@ -340,13 +359,20 @@ class FileGenerator {
     );
 
     await _writeFile(
+      path.join(libPath, 'theme/app_color.dart'),
+      CommonTemplates.appColors(),
+    );
+
+    await _writeFile(
       path.join(libPath, 'core/l10n/string_resources.dart'),
       CommonTemplates.localizationRClass(),
     );
 
     await _writeFile(
       path.join(libPath, 'core/services/base_connection.dart'),
-      CommonTemplates.baseConnection(),
+      config.stateManagement == .getx
+          ? CommonTemplates.baseConnectionGetX()
+          : CommonTemplates.baseConnectionRiverpod(),
     );
 
     // Config
@@ -392,6 +418,12 @@ class FileGenerator {
     await _writeFile(
       path.join(libPath, 'core/l10n/app_id.arb'),
       CommonTemplates.l10nArbId(),
+    );
+
+    /// General model
+    await _writeFile(
+      path.join(libPath, 'core/models/global_api_response.dart'),
+      CommonTemplates.globalApiResponse(),
     );
 
     // App widget
