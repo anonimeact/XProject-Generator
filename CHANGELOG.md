@@ -1,3 +1,7 @@
+## 1.0.2
+
+- Move assets into lib
+
 ## 1.0.1
 
 - Add customable TextStyle function using Inter
