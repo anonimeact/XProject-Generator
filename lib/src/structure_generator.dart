@@ -720,12 +720,7 @@ dependencies {
   /// Copy font files to the project assets folder.
   static Future<void> copyFontFiles(ProjectConfig config) async {
     // Explicitly set the source path to the CLI library's assets/fonts directory
-    final fontsSourcePath = path.join(
-      path.dirname(Platform.script.toFilePath()), // Base path of the CLI script
-      '..', // Navigate to the project root
-      'assets',
-      'fonts',
-    );
+    final fontsSourcePath = getPackageAssetDir().path;
 
     // Destination path points to the generated project's assets/fonts directory
     final fontsDestinationPath = path.join(
@@ -749,5 +744,12 @@ dependencies {
         await file.copy(destinationFile.path);
       }
     }
+  }
+
+  static Directory getPackageAssetDir() {
+    final scriptPath = Platform.script.toFilePath();
+    final binDir = Directory(path.dirname(scriptPath));
+    final packageRoot = binDir.parent; // keluar dari bin/
+    return Directory(path.join(packageRoot.path, 'lib', 'assets', 'fonts'));
   }
 }
