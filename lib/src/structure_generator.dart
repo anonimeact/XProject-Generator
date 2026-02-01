@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path/path.dart' as path;
 
@@ -720,14 +721,11 @@ dependencies {
   /// Copy font files to the project assets folder.
   static Future<void> copyFontFiles(ProjectConfig config) async {
     // Explicitly set the source path to the CLI library's assets/fonts directory
-    final fontsSourcePath = getPackageAssetDir().path;
+    final fontsSourceDir = await getPackageAssetDir();
+    final fontsSourcePath = fontsSourceDir.path;
 
     // Destination path points to the generated project's assets/fonts directory
-    final fontsDestinationPath = path.join(
-      config.projectPath,
-      'assets',
-      'fonts',
-    );
+    final fontsDestinationPath = path.join(config.projectPath, 'assets', 'fonts');
 
     final sourceDir = Directory(fontsSourcePath);
     if (!sourceDir.existsSync()) {
@@ -738,18 +736,20 @@ dependencies {
       if (file is File) {
         final relativePath = path.relative(file.path, from: fontsSourcePath);
         final destinationFile = File(
-          path.join(fontsDestinationPath, relativePath),
-        );
+          path.join(fontsDestinationPath, relativePath));
         await destinationFile.create(recursive: true);
         await file.copy(destinationFile.path);
       }
     }
   }
 
-  static Directory getPackageAssetDir() {
-    final scriptPath = Platform.script.toFilePath();
-    final binDir = Directory(path.dirname(scriptPath));
-    final packageRoot = binDir.parent; // keluar dari bin/
-    return Directory(path.join(packageRoot.path, 'lib', 'assets', 'fonts'));
+  static Future<Directory> getPackageAssetDir() async {
+    final uri = await Isolate.resolvePackageUri(Uri.parse('package:xproject_generator/assets/fonts/'));
+
+    if (uri == null) {
+      throw Exception('Could not resolve package asset path');
+    }
+
+    return Directory.fromUri(uri);
   }
 }

@@ -1,3 +1,7 @@
+## 1.0.3
+
+- Adjust logic to load assets in lib/assets/fonts
+
 ## 1.0.2
 
 - Move assets into lib
