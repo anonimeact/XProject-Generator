@@ -725,7 +725,11 @@ dependencies {
     final fontsSourcePath = fontsSourceDir.path;
 
     // Destination path points to the generated project's assets/fonts directory
-    final fontsDestinationPath = path.join(config.projectPath, 'assets', 'fonts');
+    final fontsDestinationPath = path.join(
+      config.projectPath,
+      'assets',
+      'fonts',
+    );
 
     final sourceDir = Directory(fontsSourcePath);
     if (!sourceDir.existsSync()) {
@@ -736,7 +740,8 @@ dependencies {
       if (file is File) {
         final relativePath = path.relative(file.path, from: fontsSourcePath);
         final destinationFile = File(
-          path.join(fontsDestinationPath, relativePath));
+          path.join(fontsDestinationPath, relativePath),
+        );
         await destinationFile.create(recursive: true);
         await file.copy(destinationFile.path);
       }
@@ -744,7 +749,9 @@ dependencies {
   }
 
   static Future<Directory> getPackageAssetDir() async {
-    final uri = await Isolate.resolvePackageUri(Uri.parse('package:xproject_generator/assets/fonts/'));
+    final uri = await Isolate.resolvePackageUri(
+      Uri.parse('package:xproject_generator/assets/fonts/'),
+    );
 
     if (uri == null) {
       throw Exception('Could not resolve package asset path');
