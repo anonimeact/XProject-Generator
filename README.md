@@ -9,7 +9,7 @@ Key features
 - Generate feature templates inside an existing project (GetX or Riverpod)
 - Create environment files (`.env.*`) and platform flavor configuration (Android & iOS)
 - Optional Firebase initialization helpers and platform config templates
-- Templates for themes, localization, base API connection, sessions, and example features
+- Templates for themes, text style, app colors, localization, base API connection, sessions, and example features
 
 Repository layout (important files)
 - [bin/xproject.dart](bin/xproject.dart) — CLI entrypoint

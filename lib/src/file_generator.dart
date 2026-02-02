@@ -86,7 +86,7 @@ class FileGenerator {
   /// Generate GetX feature files for [feature].
   static Future<void> _generateGetXFeature(String feature) async {
     final rootDir = findProjectRoot();
-    final basePath = path.join(rootDir.path, 'lib', 'features', feature);
+    final basePath = path.join(rootDir.path, 'lib', 'features');
 
     final files = {
       '$feature/bindings/${feature}_binding.dart':

@@ -1,3 +1,7 @@
+## 1.0.4
+
+- Update path when generate feature for getx
+
 ## 1.0.3
 
 - Adjust logic to load assets in lib/assets/fonts
