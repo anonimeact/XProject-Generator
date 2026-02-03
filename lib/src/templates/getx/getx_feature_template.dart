@@ -111,10 +111,13 @@ import 'package:dio_extended/models/api_result.dart';
 import '../../../../core/services/base_connection.dart';
 import '../../../../core/models/global_api_response.dart';
 
-class ${pascal}Provider extends BaseConnection {
-    Future<ApiResult<GlobalApiResponse>> ${featureName}Data(dynamic body) async {
-    return callApiRequest<GlobalApiResponse>(
-      request: () => post('/api/$featureName', body: body),
+class ${pascal}Provider {
+
+  final _connection = BaseConnection();
+
+  Future<ApiResult<GlobalApiResponse>> ${featureName}Data(dynamic body) async {
+    return _connection.callApiRequest<GlobalApiResponse>(
+      request: () => _connection.post('/api/$featureName', body: body),
       parseData: (data) => GlobalApiResponse.fromJson(data),
     );
   }
@@ -131,10 +134,13 @@ import 'package:dio_extended/models/api_result.dart';
 import '../../../core/services/base_connection.dart';
 import '../models/user_model.dart';
 
-class LoginProvider extends BaseConnection {
-  Future<ApiResult<UserModel>> login(dynamic body) async {
-    return callApiRequest<UserModel>(
-      request: () => post('/api/login', body: body),
+class LoginProvider {
+
+final _connection = BaseConnection();
+
+Future<ApiResult<UserModel>> login(dynamic body) async {
+    return _connection.callApiRequest<UserModel>(
+      request: () => _connection.post('/api/login', body: body),
       parseData: (data) => UserModel.fromJson(data),
     );
   }

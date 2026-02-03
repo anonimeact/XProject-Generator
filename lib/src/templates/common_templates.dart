@@ -585,12 +585,51 @@ import '../../sessions/user_session.dart';
 import '../config/env_config.dart';
 
 class BaseConnection extends DioExtended {
-  BaseConnection()
-    : super(
-        baseUrl: EnvConfig.apiBaseUrl,
-        headers: {'Accept': 'application/json', ..._buildAuthHeaders()},
-        tokenExpiredCode: 402,
-      );
+
+  BaseConnection._internal()
+    : super(baseUrl: EnvConfig.apiBaseUrl, headers: _buildAuthHeaders(), tokenExpiredCode: 402);
+
+  static final BaseConnection _instance = BaseConnection._internal();
+  factory BaseConnection() => _instance;
+
+  @override
+  Future<dynamic> handleTokenExpired() async {
+    /// Fetch your new token here
+    /// .........
+    return _buildAuthHeaders();
+  }
+
+  static Map<String, String> _buildAuthHeaders() {
+    final token = UserSessions.getToken();
+    if (token == null) return {};
+    return {'token': token};
+  }
+
+  /// If fetch async headers
+  // static Future<Map<String, String>> _buildAuthHeaders() async {
+  //   String token = UserSessions.getToken() ?? '';
+  //   return {
+  //     'token': 'Bearer \${token.toString()}',
+  //   };
+  // }
+}
+''';
+  }
+
+  static String baseConnectionRiverpod() {
+    return '''
+import 'package:dio_extended/diox.dart';
+
+import '../../sessions/user_session.dart';
+import '../config/env_config.dart';
+
+class BaseConnection extends DioExtended {
+
+  BaseConnection._internal()
+    : super(baseUrl: EnvConfig.apiBaseUrl, headers: _buildAuthHeaders(), tokenExpiredCode: 402);
+
+  static final BaseConnection _instance = BaseConnection._internal();
+  factory BaseConnection() => _instance;
 
   @override
   Future<dynamic> handleTokenExpired() async {
@@ -605,40 +644,41 @@ class BaseConnection extends DioExtended {
     return {'token': token};
   }
 }
-''';
-  }
 
-  static String baseConnectionRiverpod() {
-    return '''
-import 'package:dio_extended/diox.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+  /// If fetch async headers
+  /// Using this code to provide connection provider
+  /// NOTE: You can uncomment DatasourceRefX in core/extensions/datasource_refx.dart
+  /// to use this async headers version
+  
+// import 'package:dio_extended/diox.dart';
+// import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../sessions/user_session.dart';
-import '../config/env_config.dart';
+// import '../../sessions/user_session.dart';
+// import '../config/env_config.dart';
 
-part 'base_connection.g.dart';
+// part 'base_connection.g.dart';
 
-@riverpod
-Future<BaseConnection> baseConnection(Ref ref) async {
-  return BaseConnection.create();
-}
+// @riverpod
+// Future<BaseConnection> baseConnection(Ref ref) async {
+//   return BaseConnection.create();
+// }
 
-class BaseConnection extends DioExtended {
-  BaseConnection._internal(Map<String, String> headers) 
-    : super(baseUrl: EnvConfig.apiBaseUrl, headersAsync: Future.value(headers));
+// class BaseConnection extends DioExtended {
+//   BaseConnection._internal(Map<String, String> headers) 
+//     : super(baseUrl: EnvConfig.apiBaseUrl, headersAsync: Future.value(headers));
 
-  static Future<BaseConnection> create() async {
-    final headers = await _buildAuthHeaders();
-    return BaseConnection._internal(headers);
-  }
+//   static Future<BaseConnection> create() async {
+//     final headers = await _buildAuthHeaders();
+//     return BaseConnection._internal(headers);
+//   }
 
-  static Future<Map<String, String>> _buildAuthHeaders() async {
-    String token = UserSessions.getToken() ?? '';
-    return {
-      'token': 'Bearer \${token.toString()}',
-    };
-  }
-}
+//   static Future<Map<String, String>> _buildAuthHeaders() async {
+//     String token = UserSessions.getToken() ?? '';
+//     return {
+//       'token': 'Bearer \${token.toString()}',
+//     };
+//   }
+// }
 ''';
   }
 

@@ -4,16 +4,16 @@ import '../common_templates.dart';
 class RiverpodFeatureTemplate {
   static String datasourceRefxExt() {
     return '''
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+// import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/base_connection.dart';
+// import '../services/base_connection.dart';
 
-extension DatasourceRefX on Ref {
-  Future<T> makeDatasource<T>(T Function(BaseConnection conn) builder) async {
-    final connection = await watch(baseConnectionProvider.future);
-    return builder(connection);
-  }
-}
+// extension DatasourceRefX on Ref {
+//   Future<T> makeDatasource<T>(T Function(BaseConnection conn) builder) async {
+//     final connection = await watch(baseConnectionProvider.future);
+//     return builder(connection);
+//   }
+// }
 ''';
   }
 
@@ -29,8 +29,13 @@ class ${pascal}Datasources {
   /// Injected base connection
   /// You can use this to make API calls
   /// See: core/services/base_connection.dart
-  final BaseConnection _connection;
-  ${pascal}Datasources(this._connection);
+  
+  final _connection = BaseConnection();
+  
+  /// Use this if you use DatasourceRefX extension
+  /// to init BaseConnection from Ref
+  // final BaseConnection _connection;
+  // ${pascal}Datasources(this._connection);
 
   Future<ApiResult<GlobalApiResponse>> yourFunction({required String a}) async {
     final response = await _connection.callApiRequest(
@@ -51,16 +56,21 @@ class ${pascal}Datasources {
 import 'package:dio_extended/models/api_result.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../../core/extensions/datasource_refx.dart';
+// import '../../../../core/extensions/datasource_refx.dart';
 import '../../../../core/models/global_api_response.dart';
 import '../../data/datasources/${snake}_datasources.dart';
 
 part '${snake}_provider.g.dart';
 
 @riverpod
-Future<${pascal}Datasources> ${snake}Datasource(Ref ref) async {
-  return ref.makeDatasource((connection) => ${pascal}Datasources(connection));
-}
+${pascal}Datasources ${snake}Datasource(Ref ref) => ${pascal}Datasources();
+
+  /// Uncomment this if you use DatasourceRefX extension
+  /// to provide dataSourceProvider
+// @riverpod
+// Future<${pascal}Datasources> ${snake}Datasource(Ref ref) async {
+//   return ref.makeDatasource((connection) => ${pascal}Datasources(connection));
+// }
 
 @riverpod
 class ${pascal}Controller extends _\$${pascal}Controller {
@@ -71,10 +81,12 @@ class ${pascal}Controller extends _\$${pascal}Controller {
   Future<void> yourFunction({required String a}) async {
       state = const AsyncLoading();
 
-      final datasource = await ref.read(${snake}DatasourceProvider.future);
-      if (!ref.mounted) return;
-
+      final datasource = ref.read(${snake}DatasourceProvider);
       final result = await AsyncValue.guard(() => datasource.yourFunction(a: a));
+
+      /// Use this if you use async datasource provider
+      // final datasource = await ref.read(${snake}DatasourceProvider.future);
+      // final result = await AsyncValue.guard(() => datasource.yourFunction(a: a));
 
       if (!ref.mounted) return;
 

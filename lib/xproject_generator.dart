@@ -128,6 +128,7 @@ class ProjectGenerator {
     logger.info(
       '  flutter run --flavor development -t lib/main_development.dart',
     );
+    logger.info('or: \n  Go to Run and Debug icon in left panel in VSCode, and select env that you want to run');
   }
 
   /// Collect user input for project creation (name, package, state management, etc.).
