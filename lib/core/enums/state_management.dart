@@ -6,4 +6,4 @@
 /// Used to determine which templates and code structure to generate.
 ///
 /// See README.md for more details.
-enum StateManagement { getx, riverpod }
+enum StateManagement { getx, riverpod, bloc }

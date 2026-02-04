@@ -30,9 +30,14 @@ class FeatureGenerator {
     logger.info('\n📦 Generating new feature template...');
     final root = findFlutterProjectRoot();
     final currentStateManagement = await detectStateManagementFromProject(root);
+    final architecture = await detectArchitectureFromProject(
+      root: root,
+      stateManagement: currentStateManagement,
+    );
     await FileGenerator.generateFeature(
       stateManagement: currentStateManagement,
       featureName: featureName,
+      architecture: architecture,
     );
     logger.success('\n✅ $featureName template already generated!');
     await runBuildRunner(projectRoot: root);
@@ -55,12 +60,17 @@ class FeatureGenerator {
       r'^\s*flutter_riverpod:\s*',
       multiLine: true,
     ).hasMatch(content);
+    final hasBloc = RegExp(
+      r'^\s*flutter_bloc:\s*',
+      multiLine: true,
+    ).hasMatch(content);
 
-    if (hasGet && !hasRiverpod) return StateManagement.getx;
-    if (hasRiverpod && !hasGet) return StateManagement.riverpod;
+    if (hasGet && !hasRiverpod && !hasBloc) return StateManagement.getx;
+    if (hasRiverpod && !hasGet && !hasBloc) return StateManagement.riverpod;
+    if (hasBloc && !hasGet && !hasRiverpod) return StateManagement.bloc;
 
     // Kalau keduanya ada (possible), pakai rule tambahan
-    if (hasGet && hasRiverpod) {
+    if (hasGet || hasRiverpod || hasBloc) {
       // Prefer routing detection
       final hasGetMaterialApp = await _hasTextInLib(
         root.path,
@@ -68,13 +78,16 @@ class FeatureGenerator {
       );
       if (hasGetMaterialApp) return StateManagement.getx;
 
+      final hasBlocProvider = await _hasTextInLib(root.path, 'BlocProvider');
+      if (hasBlocProvider) return StateManagement.bloc;
+
       final hasGoRouter = await _hasTextInLib(root.path, 'GoRouter');
       if (hasGoRouter) return StateManagement.riverpod;
     }
 
     throw Exception(
       'Cannot detect state management. '
-      'No get/flutter_riverpod dependency found.',
+      'No get/flutter_riverpod/flutter_bloc dependency found.',
     );
   }
 
@@ -114,6 +127,44 @@ class FeatureGenerator {
       }
     }
     return false;
+  }
+
+  static Future<StateManagementArchitecture?> detectArchitectureFromProject({
+    required Directory root,
+    required StateManagement stateManagement,
+  }) async {
+    if (stateManagement == StateManagement.getx) return null;
+
+    final featuresDir = Directory(path.join(root.path, 'lib', 'features'));
+    if (!featuresDir.existsSync()) return StateManagementArchitecture.simple;
+
+    final entries = featuresDir.listSync().whereType<Directory>();
+
+    for (final featureDir in entries) {
+      final domainDir = Directory(path.join(featureDir.path, 'domain'));
+      if (domainDir.existsSync()) return StateManagementArchitecture.clean;
+
+      final dataRepositories = Directory(
+        path.join(featureDir.path, 'data', 'repositories'),
+      );
+      if (dataRepositories.existsSync())
+        return StateManagementArchitecture.clean;
+    }
+
+    // Fallback: detect clean providers/usecases in files
+    if (stateManagement == StateManagement.riverpod) {
+      final hasUsecase = await _hasTextInLib(root.path, 'Get');
+      final hasRepository = await _hasTextInLib(root.path, 'Repository');
+      if (hasUsecase && hasRepository) return StateManagementArchitecture.clean;
+    }
+
+    if (stateManagement == StateManagement.bloc) {
+      final hasUsecase = await _hasTextInLib(root.path, 'Usecase');
+      final hasRepository = await _hasTextInLib(root.path, 'Repository');
+      if (hasUsecase && hasRepository) return StateManagementArchitecture.clean;
+    }
+
+    return StateManagementArchitecture.simple;
   }
 
   /// Run build_runner in the given [projectRoot] directory after feature generation.

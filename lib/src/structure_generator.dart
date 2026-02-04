@@ -23,8 +23,18 @@ class StructureGenerator {
 
     if (config.stateManagement == StateManagement.getx) {
       await _generateGetXStructure(libPath);
+    } else if (config.stateManagement == StateManagement.riverpod) {
+      if (config.riverpodArchitecture == StateManagementArchitecture.clean) {
+        await _generateRiverpodCleanStructure(libPath);
+      } else {
+        await _generateRiverpodStructure(libPath);
+      }
     } else {
-      await _generateRiverpodStructure(libPath);
+      if (config.blocArchitecture == StateManagementArchitecture.clean) {
+        await _generateBlocCleanStructure(libPath);
+      } else {
+        await _generateBlocStructure(libPath);
+      }
     }
 
     // Create environment files
@@ -66,6 +76,81 @@ class StructureGenerator {
       'features/login/data/datasources',
       'features/login/data/models',
       'features/login/presentation/providers',
+    ];
+
+    for (final dir in dirs) {
+      await Directory(path.join(libPath, dir)).create(recursive: true);
+    }
+  }
+
+  static Future<void> _generateRiverpodCleanStructure(String libPath) async {
+    final dirs = [
+      'features/login/data/datasources',
+      'features/login/data/models',
+      'features/login/data/repositories',
+      'features/login/domain/entities',
+      'features/login/domain/repositories',
+      'features/login/domain/usecases',
+      'features/login/presentation/providers',
+      'features/login/presentation/views',
+      'features/home/data/datasources',
+      'features/home/data/models',
+      'features/home/data/repositories',
+      'features/home/domain/entities',
+      'features/home/domain/repositories',
+      'features/home/domain/usecases',
+      'features/home/presentation/providers',
+      'features/home/presentation/views',
+      'features/splash/presentation/providers',
+      'features/splash/presentation/views',
+    ];
+
+    for (final dir in dirs) {
+      await Directory(path.join(libPath, dir)).create(recursive: true);
+    }
+  }
+
+  static Future<void> _generateBlocStructure(String libPath) async {
+    final dirs = [
+      'features/splash/presentation/bloc',
+      'features/splash/presentation/views',
+      'features/login/data/datasources',
+      'features/login/data/models',
+      'features/login/presentation/bloc',
+      'features/login/presentation/views',
+      'features/home/data/datasources',
+      'features/home/data/models',
+      'features/home/presentation/bloc',
+      'features/home/presentation/views',
+      'routes',
+    ];
+
+    for (final dir in dirs) {
+      await Directory(path.join(libPath, dir)).create(recursive: true);
+    }
+  }
+
+  static Future<void> _generateBlocCleanStructure(String libPath) async {
+    final dirs = [
+      'features/splash/presentation/bloc',
+      'features/splash/presentation/views',
+      'features/login/data/datasources',
+      'features/login/data/models',
+      'features/login/data/repositories',
+      'features/login/domain/entities',
+      'features/login/domain/repositories',
+      'features/login/domain/usecases',
+      'features/login/presentation/bloc',
+      'features/login/presentation/views',
+      'features/home/data/datasources',
+      'features/home/data/models',
+      'features/home/data/repositories',
+      'features/home/domain/entities',
+      'features/home/domain/repositories',
+      'features/home/domain/usecases',
+      'features/home/presentation/bloc',
+      'features/home/presentation/views',
+      'routes',
     ];
 
     for (final dir in dirs) {

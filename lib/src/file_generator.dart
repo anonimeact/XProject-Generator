@@ -7,6 +7,8 @@ import '../core/path.dart';
 import 'templates/common_templates.dart';
 import 'templates/getx/getx_feature_template.dart';
 import 'templates/getx/getx_templates.dart';
+import 'templates/bloc/bloc_feature_template.dart';
+import 'templates/bloc/bloc_templates.dart';
 import 'templates/riverpod/riverpod_feature_template.dart';
 import 'templates/riverpod/riverpod_templates.dart';
 
@@ -46,8 +48,18 @@ class FileGenerator {
 
     if (config.stateManagement == StateManagement.getx) {
       await _generateGetXFiles(libPath, config);
+    } else if (config.stateManagement == StateManagement.riverpod) {
+      if (config.riverpodArchitecture == StateManagementArchitecture.clean) {
+        await _generateRiverpodCleanFiles(libPath, config);
+      } else {
+        await _generateRiverpodFiles(libPath, config);
+      }
     } else {
-      await _generateRiverpodFiles(libPath, config);
+      if (config.blocArchitecture == StateManagementArchitecture.clean) {
+        await _generateBlocCleanFiles(libPath, config);
+      } else {
+        await _generateBlocFiles(libPath, config);
+      }
     }
 
     // Generate common files
@@ -70,6 +82,7 @@ class FileGenerator {
   static Future<void> generateFeature({
     required StateManagement stateManagement,
     required String featureName,
+    StateManagementArchitecture? architecture,
   }) async {
     final name = featureName.toLowerCase();
 
@@ -78,9 +91,48 @@ class FileGenerator {
         await _generateGetXFeature(name);
         break;
       case StateManagement.riverpod:
-        await _generateRiverpodFeature(name);
+        final resolvedArchitecture =
+            architecture ?? _detectArchitectureFromProject();
+        if (resolvedArchitecture == StateManagementArchitecture.clean) {
+          await _generateRiverpodFeatureClean(name);
+        } else {
+          await _generateRiverpodFeature(name);
+        }
+        break;
+      case StateManagement.bloc:
+        final resolvedArchitecture =
+            architecture ?? _detectArchitectureFromProject();
+        if (resolvedArchitecture == StateManagementArchitecture.clean) {
+          await _generateBlocFeatureClean(name);
+        } else {
+          await _generateBlocFeature(name);
+        }
         break;
     }
+  }
+
+  static StateManagementArchitecture _detectArchitectureFromProject() {
+    final rootDir = findProjectRoot();
+    final featuresDir = Directory(path.join(rootDir.path, 'lib', 'features'));
+    if (!featuresDir.existsSync()) return StateManagementArchitecture.simple;
+
+    final entries = featuresDir.listSync();
+    for (final entry in entries) {
+      if (entry is Directory) {
+        final domainDir = Directory(path.join(entry.path, 'domain'));
+        if (domainDir.existsSync()) {
+          return StateManagementArchitecture.clean;
+        }
+
+        final dataRepositories = Directory(
+          path.join(entry.path, 'data', 'repositories'),
+        );
+        if (dataRepositories.existsSync()) {
+          return StateManagementArchitecture.clean;
+        }
+      }
+    }
+    return StateManagementArchitecture.simple;
   }
 
   /// Generate GetX feature files for [feature].
@@ -124,6 +176,98 @@ class FileGenerator {
           RiverpodFeatureTemplate.generalProvider(feature),
       '$feature/presentation/views/${feature}_view.dart':
           RiverpodFeatureTemplate.generalView(feature),
+    };
+
+    for (final entry in files.entries) {
+      final file = File(path.join(basePath, entry.key));
+      file.createSync(recursive: true);
+      await file.writeAsString(entry.value);
+    }
+  }
+
+  static Future<void> _generateRiverpodFeatureClean(String feature) async {
+    final rootDir = findProjectRoot();
+    final basePath = path.join(rootDir.path, 'lib', 'features');
+
+    final files = {
+      '$feature/data/datasources/${feature}_datasources.dart':
+          RiverpodFeatureTemplate.generalDataSource(feature),
+      '$feature/data/models/${feature}_model.dart':
+          CommonTemplates.freezedModel(feature),
+      '$feature/data/repositories/${feature}_repository_impl.dart':
+          RiverpodFeatureTemplate.generalRepositoryImpl(feature),
+      '$feature/domain/entities/${feature}_entity.dart':
+          RiverpodFeatureTemplate.generalEntity(feature),
+      '$feature/domain/repositories/${feature}_repository.dart':
+          RiverpodFeatureTemplate.generalRepository(feature),
+      '$feature/domain/usecases/get_${feature}.dart':
+          RiverpodFeatureTemplate.generalUsecase(feature),
+      '$feature/presentation/providers/${feature}_provider.dart':
+          RiverpodFeatureTemplate.generalProviderClean(feature),
+      '$feature/presentation/views/${feature}_view.dart':
+          RiverpodFeatureTemplate.generalViewClean(feature),
+    };
+
+    for (final entry in files.entries) {
+      final file = File(path.join(basePath, entry.key));
+      file.createSync(recursive: true);
+      await file.writeAsString(entry.value);
+    }
+  }
+
+  /// Generate Bloc feature files for [feature].
+  static Future<void> _generateBlocFeature(String feature) async {
+    final rootDir = findProjectRoot();
+    final basePath = path.join(rootDir.path, 'lib', 'features');
+
+    final files = {
+      '$feature/data/datasources/${feature}_remote_datasource.dart':
+          BlocFeatureTemplate.generalRemoteDatasource(feature),
+      '$feature/data/models/${feature}_model.dart':
+          CommonTemplates.freezedModel(feature),
+      '$feature/presentation/bloc/${feature}_bloc.dart':
+          BlocFeatureTemplate.generalBlocSimple(feature),
+      '$feature/presentation/bloc/${feature}_event.dart':
+          BlocFeatureTemplate.generalEvent(feature),
+      '$feature/presentation/bloc/${feature}_state.dart':
+          BlocFeatureTemplate.generalState(feature),
+      '$feature/presentation/views/${feature}_view.dart':
+          BlocFeatureTemplate.generalViewSimple(feature),
+    };
+
+    for (final entry in files.entries) {
+      final file = File(path.join(basePath, entry.key));
+      file.createSync(recursive: true);
+      await file.writeAsString(entry.value);
+    }
+  }
+
+  /// Generate Bloc Clean Code feature files for [feature].
+  static Future<void> _generateBlocFeatureClean(String feature) async {
+    final rootDir = findProjectRoot();
+    final basePath = path.join(rootDir.path, 'lib', 'features');
+
+    final files = {
+      '$feature/data/datasources/${feature}_remote_datasource.dart':
+          BlocFeatureTemplate.generalRemoteDatasource(feature),
+      '$feature/data/models/${feature}_model.dart':
+          CommonTemplates.freezedModel(feature),
+      '$feature/data/repositories/${feature}_repository_impl.dart':
+          BlocFeatureTemplate.generalRepositoryImpl(feature),
+      '$feature/domain/entities/${feature}_entity.dart':
+          BlocFeatureTemplate.generalEntity(feature),
+      '$feature/domain/repositories/${feature}_repository.dart':
+          BlocFeatureTemplate.generalRepository(feature),
+      '$feature/domain/usecases/get_${feature}.dart':
+          BlocFeatureTemplate.generalUsecase(feature),
+      '$feature/presentation/bloc/${feature}_bloc.dart':
+          BlocFeatureTemplate.generalBloc(feature),
+      '$feature/presentation/bloc/${feature}_event.dart':
+          BlocFeatureTemplate.generalEvent(feature),
+      '$feature/presentation/bloc/${feature}_state.dart':
+          BlocFeatureTemplate.generalState(feature),
+      '$feature/presentation/views/${feature}_view.dart':
+          BlocFeatureTemplate.generalView(feature),
     };
 
     for (final entry in files.entries) {
@@ -347,6 +491,406 @@ class FileGenerator {
     );
   }
 
+  /// Generate all Riverpod Clean Code files for a new project in [libPath] using [config].
+  static Future<void> _generateRiverpodCleanFiles(
+    String libPath,
+    ProjectConfig config,
+  ) async {
+    /// Theme
+    await _writeFile(
+      path.join(libPath, 'theme/theme_provider.dart'),
+      RiverpodTemplates.themeProvider(),
+    );
+
+    /// Locale
+    await _writeFile(
+      path.join(libPath, 'core/l10n/locale_provider.dart'),
+      RiverpodTemplates.localeProvider(),
+    );
+    // App router
+    await _writeFile(
+      path.join(libPath, 'routes/app_router.dart'),
+      RiverpodTemplates.appRouter(),
+    );
+    await _writeFile(
+      path.join(libPath, 'routes/routes.dart'),
+      RiverpodTemplates.routes(),
+    );
+
+    // Extensions
+    await _writeFile(
+      path.join(libPath, 'core/extensions/datasource_refx.dart'),
+      RiverpodFeatureTemplate.datasourceRefxExt(),
+    );
+
+    // Features - Splash
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/splash/presentation/providers/splash_provider.dart',
+      ),
+      RiverpodFeatureTemplate.splashProvider(config),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/splash/presentation/views/splash_view.dart'),
+      RiverpodFeatureTemplate.splashView(),
+    );
+
+    // Features - Login
+    await _writeFile(
+      path.join(libPath, 'features/login/data/models/user_model.dart'),
+      CommonTemplates.userModel(),
+    );
+
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/data/datasources/login_remote_datasource.dart',
+      ),
+      RiverpodFeatureTemplate.loginRemoteDatasource(),
+    );
+
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/domain/repositories/login_repository.dart',
+      ),
+      RiverpodFeatureTemplate.loginRepository(),
+    );
+
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/data/repositories/login_repository_impl.dart',
+      ),
+      RiverpodFeatureTemplate.loginRepositoryImpl(),
+    );
+
+    await _writeFile(
+      path.join(libPath, 'features/login/domain/usecases/login_user.dart'),
+      RiverpodFeatureTemplate.loginUsecase(),
+    );
+
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/presentation/providers/login_provider.dart',
+      ),
+      RiverpodFeatureTemplate.loginProviderClean(),
+    );
+
+    await _writeFile(
+      path.join(libPath, 'features/login/presentation/views/login_view.dart'),
+      RiverpodFeatureTemplate.loginViewClean(),
+    );
+
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/presentation/views/login_form_fields.dart',
+      ),
+      RiverpodFeatureTemplate.loginFormField(),
+    );
+
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/presentation/providers/login_form_provider.dart',
+      ),
+      RiverpodFeatureTemplate.loginFormProvider(),
+    );
+
+    // Home Feature
+    await _writeFile(
+      path.join(libPath, 'features/home/presentation/views/home_view.dart'),
+      RiverpodFeatureTemplate.homeView(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/presentation/providers/home_provider.dart',
+      ),
+      RiverpodFeatureTemplate.generalProviderClean('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/data/models/home_model.dart'),
+      CommonTemplates.freezedModel('home'),
+    );
+
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/data/datasources/home_datasources.dart',
+      ),
+      RiverpodFeatureTemplate.generalDataSource('home'),
+    );
+
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/domain/repositories/home_repository.dart',
+      ),
+      RiverpodFeatureTemplate.generalRepository('home'),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/data/repositories/home_repository_impl.dart',
+      ),
+      RiverpodFeatureTemplate.generalRepositoryImpl('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/domain/usecases/get_home.dart'),
+      RiverpodFeatureTemplate.generalUsecase('home'),
+    );
+
+    await _writeFile(
+      path.join(libPath, 'sessions/user_session.dart'),
+      CommonTemplates.userSessionsRiverpod(),
+    );
+    await _writeFile(
+      path.join(libPath, 'theme/text_style.dart'),
+      CommonTemplates.textStyleHelperRiverpod(),
+    );
+  }
+
+  /// Generate all Bloc-specific files for a new project in [libPath] using [config].
+  static Future<void> _generateBlocFiles(
+    String libPath,
+    ProjectConfig config,
+  ) async {
+    // App router
+    await _writeFile(
+      path.join(libPath, 'routes/app_router.dart'),
+      BlocTemplates.appRouter(),
+    );
+    await _writeFile(
+      path.join(libPath, 'routes/routes.dart'),
+      BlocTemplates.routes(),
+    );
+
+    // Features - Splash
+    await _writeFile(
+      path.join(libPath, 'features/splash/presentation/bloc/splash_event.dart'),
+      BlocFeatureTemplate.splashEvent(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/splash/presentation/bloc/splash_state.dart'),
+      BlocFeatureTemplate.splashState(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/splash/presentation/bloc/splash_bloc.dart'),
+      BlocFeatureTemplate.splashBloc(config),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/splash/presentation/views/splash_view.dart'),
+      BlocFeatureTemplate.splashView(),
+    );
+
+    // Features - Login
+    await _writeFile(
+      path.join(libPath, 'features/login/data/models/user_model.dart'),
+      CommonTemplates.userModel(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/data/datasources/login_remote_datasource.dart',
+      ),
+      BlocFeatureTemplate.loginRemoteDatasource(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/login/presentation/bloc/login_event.dart'),
+      BlocFeatureTemplate.loginEvent(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/login/presentation/bloc/login_state.dart'),
+      BlocFeatureTemplate.loginState(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/login/presentation/bloc/login_bloc.dart'),
+      BlocFeatureTemplate.loginBlocSimple(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/login/presentation/views/login_view.dart'),
+      BlocFeatureTemplate.loginViewSimple(),
+    );
+
+    // Home Feature
+    await _writeFile(
+      path.join(libPath, 'features/home/data/models/home_model.dart'),
+      CommonTemplates.freezedModel('home'),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/data/datasources/home_remote_datasource.dart',
+      ),
+      BlocFeatureTemplate.generalRemoteDatasource('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/presentation/bloc/home_event.dart'),
+      BlocFeatureTemplate.generalEvent('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/presentation/bloc/home_state.dart'),
+      BlocFeatureTemplate.generalState('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/presentation/bloc/home_bloc.dart'),
+      BlocFeatureTemplate.generalBlocSimple('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/presentation/views/home_view.dart'),
+      BlocFeatureTemplate.generalViewSimple('home'),
+    );
+
+    await _writeFile(
+      path.join(libPath, 'sessions/user_session.dart'),
+      CommonTemplates.userSessionsBloc(),
+    );
+    await _writeFile(
+      path.join(libPath, 'theme/text_style.dart'),
+      CommonTemplates.textStyleHelperBloc(),
+    );
+  }
+
+  static Future<void> _generateBlocCleanFiles(
+    String libPath,
+    ProjectConfig config,
+  ) async {
+    // App router
+    await _writeFile(
+      path.join(libPath, 'routes/app_router.dart'),
+      BlocTemplates.appRouter(),
+    );
+    await _writeFile(
+      path.join(libPath, 'routes/routes.dart'),
+      BlocTemplates.routes(),
+    );
+
+    // Features - Splash
+    await _writeFile(
+      path.join(libPath, 'features/splash/presentation/bloc/splash_event.dart'),
+      BlocFeatureTemplate.splashEvent(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/splash/presentation/bloc/splash_state.dart'),
+      BlocFeatureTemplate.splashState(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/splash/presentation/bloc/splash_bloc.dart'),
+      BlocFeatureTemplate.splashBloc(config),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/splash/presentation/views/splash_view.dart'),
+      BlocFeatureTemplate.splashView(),
+    );
+
+    // Features - Login
+    await _writeFile(
+      path.join(libPath, 'features/login/data/models/user_model.dart'),
+      CommonTemplates.userModel(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/data/datasources/login_remote_datasource.dart',
+      ),
+      BlocFeatureTemplate.loginRemoteDatasource(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/domain/repositories/login_repository.dart',
+      ),
+      BlocFeatureTemplate.loginRepository(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/data/repositories/login_repository_impl.dart',
+      ),
+      BlocFeatureTemplate.loginRepositoryImpl(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/login/domain/usecases/login_user.dart'),
+      BlocFeatureTemplate.loginUsecase(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/login/presentation/bloc/login_event.dart'),
+      BlocFeatureTemplate.loginEvent(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/login/presentation/bloc/login_state.dart'),
+      BlocFeatureTemplate.loginState(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/login/presentation/bloc/login_bloc.dart'),
+      BlocFeatureTemplate.loginBloc(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/login/presentation/views/login_view.dart'),
+      BlocFeatureTemplate.loginView(),
+    );
+
+    // Home Feature
+    await _writeFile(
+      path.join(libPath, 'features/home/data/models/home_model.dart'),
+      CommonTemplates.freezedModel('home'),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/data/datasources/home_remote_datasource.dart',
+      ),
+      BlocFeatureTemplate.generalRemoteDatasource('home'),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/domain/repositories/home_repository.dart',
+      ),
+      BlocFeatureTemplate.generalRepository('home'),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/data/repositories/home_repository_impl.dart',
+      ),
+      BlocFeatureTemplate.generalRepositoryImpl('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/domain/usecases/get_home.dart'),
+      BlocFeatureTemplate.generalUsecase('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/presentation/bloc/home_event.dart'),
+      BlocFeatureTemplate.generalEvent('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/presentation/bloc/home_state.dart'),
+      BlocFeatureTemplate.generalState('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/presentation/bloc/home_bloc.dart'),
+      BlocFeatureTemplate.generalBloc('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/presentation/views/home_view.dart'),
+      BlocFeatureTemplate.generalView('home'),
+    );
+
+    await _writeFile(
+      path.join(libPath, 'sessions/user_session.dart'),
+      CommonTemplates.userSessionsBloc(),
+    );
+    await _writeFile(
+      path.join(libPath, 'theme/text_style.dart'),
+      CommonTemplates.textStyleHelperBloc(),
+    );
+  }
+
   /// Generate common files (theme, localization, config, firebase, etc.) for the project.
   static Future<void> _generateCommonFiles(
     String libPath,
@@ -370,9 +914,11 @@ class FileGenerator {
 
     await _writeFile(
       path.join(libPath, 'core/services/base_connection.dart'),
-      config.stateManagement == .getx
+      config.stateManagement == StateManagement.getx
           ? CommonTemplates.baseConnectionGetX()
-          : CommonTemplates.baseConnectionRiverpod(),
+          : config.stateManagement == StateManagement.riverpod
+          ? CommonTemplates.baseConnectionRiverpod()
+          : CommonTemplates.baseConnectionBloc(),
     );
 
     // Config
@@ -431,7 +977,9 @@ class FileGenerator {
       path.join(libPath, 'app.dart'),
       config.stateManagement == StateManagement.getx
           ? CommonTemplates.appWidgetGetX(config)
-          : CommonTemplates.appWidgetRiverpod(config),
+          : config.stateManagement == StateManagement.riverpod
+          ? CommonTemplates.appWidgetRiverpod(config)
+          : CommonTemplates.appWidgetBloc(config),
     );
   }
 }

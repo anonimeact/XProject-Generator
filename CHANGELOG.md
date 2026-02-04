@@ -1,3 +1,8 @@
+## 1.0.5
+
+- Add Bloc State Management Option
+- Add Simple and Clean Code (Using domainlayer) option when create project using Bloc and Riverpod
+
 ## 1.0.4
 
 - Update path when generate feature for getx

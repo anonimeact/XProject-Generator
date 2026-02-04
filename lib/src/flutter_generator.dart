@@ -17,25 +17,20 @@ class FlutterGenerator {
   static Future<void> create(ProjectConfig config) async {
     final parentDir = Directory.current.path;
 
-    final result = await Process.run(
-      'flutter',
-      [
-        'create',
-        '--org',
-        config.androidPackage.substring(
-          0,
-          config.androidPackage.lastIndexOf('.'),
-        ),
-        config.appName,
-      ],
-      workingDirectory: parentDir, // 🔥 INI KUNCI UTAMA
-    );
+    final result = await Process.run('flutter', [
+      'create',
+      '--org',
+      config.androidPackage.substring(
+        0,
+        config.androidPackage.lastIndexOf('.'),
+      ),
+      config.appName,
+    ], workingDirectory: parentDir);
 
     if (result.exitCode != 0) {
       throw Exception('Failed to create Flutter project:\n${result.stderr}');
     }
 
-    // ✅ SEKARANG PATH INI VALID
     final androidDir = Directory(path.join(config.projectPath, 'android'));
 
     if (!androidDir.existsSync()) {
@@ -58,11 +53,13 @@ class FlutterGenerator {
     final additionalDependencies =
         config.stateManagement == StateManagement.getx
         ? _getGetXDependencies()
-        : _getRiverpodDependencies();
+        : config.stateManagement == StateManagement.riverpod
+        ? _getRiverpodDependencies()
+        : _getBlocDependencies();
     final additionalDevDependencies =
-        config.stateManagement == StateManagement.getx
-        ? ''
-        : _getRiverpodDevDependencies();
+        config.stateManagement == StateManagement.riverpod
+        ? _getRiverpodDevDependencies()
+        : '';
     final firebaseDependencies = config.useFirebase
         ? '''
   firebase_analytics: ^12.1.0
@@ -128,6 +125,14 @@ flutter:
   static String _getRiverpodDependencies() {
     return '''  flutter_riverpod: ^3.1.0
   riverpod_annotation: ^4.0.0
+  go_router: ^17.0.1''';
+  }
+
+  /// Get the Bloc dependencies for pubspec.yaml.
+  static String _getBlocDependencies() {
+    return '''  bloc: ^9.0.0
+  flutter_bloc: ^9.1.0
+  equatable: ^2.0.7
   go_router: ^17.0.1''';
   }
 

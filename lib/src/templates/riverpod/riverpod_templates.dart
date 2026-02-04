@@ -52,12 +52,14 @@ abstract class Routes {
     return '''
 import 'package:dio_extended/diox.dart';
 import 'package:go_router/go_router.dart';
+import 'package:xwidgets_pack/xwidgets.dart';
 import '../features/home/presentation/views/home_view.dart';
 import '../features/login/presentation/views/login_view.dart';
 import '../features/splash/presentation/views/splash_view.dart';
 import 'routes.dart';
 
 final GoRouter appRouter = GoRouter(
+  navigatorKey: XSnackbar.navigatorKey,
   initialLocation: Routes.splash,
   observers: [
     ShakeChuckerConfigs.navigatorObserver

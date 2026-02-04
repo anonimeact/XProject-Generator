@@ -96,6 +96,123 @@ class ${pascal}Controller extends _\$${pascal}Controller {
 ''';
   }
 
+  static String generalEntity(String featureName) {
+    final pascal = CommonTemplates.pascalCase(featureName);
+    return '''
+class ${pascal}Entity {
+  const ${pascal}Entity({required this.id});
+
+  final String id;
+}
+''';
+  }
+
+  static String generalRepository(String featureName) {
+    final pascal = CommonTemplates.pascalCase(featureName);
+    return '''
+import 'package:dio_extended/models/api_result.dart';
+
+import '../../../../core/models/global_api_response.dart';
+
+abstract class ${pascal}Repository {
+  Future<ApiResult<GlobalApiResponse>> yourFunction({required String a});
+}
+''';
+  }
+
+  static String generalRepositoryImpl(String featureName) {
+    final pascal = CommonTemplates.pascalCase(featureName);
+    final snake = featureName.toLowerCase();
+    return '''
+import 'package:dio_extended/models/api_result.dart';
+
+import '../../../../core/models/global_api_response.dart';
+import '../../domain/repositories/${snake}_repository.dart';
+import '../datasources/${snake}_datasources.dart';
+
+class ${pascal}RepositoryImpl implements ${pascal}Repository {
+  ${pascal}RepositoryImpl({required this.datasource});
+
+  final ${pascal}Datasources datasource;
+
+  @override
+  Future<ApiResult<GlobalApiResponse>> yourFunction({required String a}) async {
+    return datasource.yourFunction(a: a);
+  }
+}
+''';
+  }
+
+  static String generalUsecase(String featureName) {
+    final pascal = CommonTemplates.pascalCase(featureName);
+    final snake = featureName.toLowerCase();
+    return '''
+import 'package:dio_extended/models/api_result.dart';
+
+import '../../../../core/models/global_api_response.dart';
+import '../repositories/${snake}_repository.dart';
+
+class Get${pascal} {
+  Get${pascal}({required this.repository});
+
+  final ${pascal}Repository repository;
+
+  Future<ApiResult<GlobalApiResponse>> call({required String a}) async {
+    return repository.yourFunction(a: a);
+  }
+}
+''';
+  }
+
+  static String generalProviderClean(String featureName) {
+    final pascal = CommonTemplates.pascalCase(featureName);
+    final snake = featureName.toLowerCase();
+
+    return '''
+import 'package:dio_extended/models/api_result.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+import '../../../../core/models/global_api_response.dart';
+import '../../data/datasources/${snake}_datasources.dart';
+import '../../data/repositories/${snake}_repository_impl.dart';
+import '../../domain/repositories/${snake}_repository.dart';
+import '../../domain/usecases/get_${snake}.dart';
+
+part '${snake}_provider.g.dart';
+
+@riverpod
+${pascal}Datasources ${snake}Datasource(Ref ref) => ${pascal}Datasources();
+
+@riverpod
+${pascal}Repository ${snake}Repository(Ref ref) => ${pascal}RepositoryImpl(
+      datasource: ref.read(${snake}DatasourceProvider),
+    );
+
+@riverpod
+Get${pascal} get${pascal}(Ref ref) => Get${pascal}(
+      repository: ref.read(${snake}RepositoryProvider),
+    );
+
+@riverpod
+class ${pascal}Controller extends _\$${pascal}Controller {
+  @override
+  AsyncValue<ApiResult<GlobalApiResponse>> build() {
+    return AsyncData(ApiResult<GlobalApiResponse>.idle());
+  }
+
+  Future<void> yourFunction({required String a}) async {
+    state = const AsyncLoading();
+
+    final usecase = ref.read(get${pascal}Provider);
+    final result = await AsyncValue.guard(() => usecase(a: a));
+
+    if (!ref.mounted) return;
+    state = result;
+  }
+}
+''';
+  }
+
   static String generalView(String featureName) {
     final pascal = CommonTemplates.pascalCase(featureName);
     final snake = featureName.toLowerCase();
@@ -134,6 +251,53 @@ class ${pascal}View extends ConsumerWidget {
         child: ${snake}State.isLoading
             ? const CircularProgressIndicator()
             : Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Text('This is $pascal View')]),
+      ),
+    );
+  }
+}
+''';
+  }
+
+  static String generalViewClean(String featureName) {
+    final pascal = CommonTemplates.pascalCase(featureName);
+    final snake = featureName.toLowerCase();
+
+    return '''
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../providers/${snake}_provider.dart';
+
+class ${pascal}View extends ConsumerWidget {
+  const ${pascal}View({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncState = ref.watch(${snake}ControllerProvider);
+
+    ref.listen(${snake}ControllerProvider, (_, next) {
+      next.whenOrNull(
+        data: (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Success')),
+          );
+        },
+        error: (err, _) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: \$err')),
+          );
+        },
+      );
+    });
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('$pascal')),
+      body: asyncState.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Error: \$err')),
+        data: (result) => Center(
+          child: Text('Result: \$result'),
+        ),
       ),
     );
   }
@@ -243,6 +407,129 @@ class LoginFormFields {
   void dispose() {
     emailOrPhone.dispose();
     password.dispose();
+  }
+}
+''';
+  }
+
+  static String loginRepository() {
+    return '''
+import 'package:dio_extended/models/api_result.dart';
+
+import '../../data/models/user_model.dart';
+
+abstract class LoginRepository {
+  Future<ApiResult<UserModel>> login({
+    required String emailOrPhone,
+    required String password,
+  });
+}
+''';
+  }
+
+  static String loginRepositoryImpl() {
+    return '''
+import 'package:dio_extended/models/api_result.dart';
+
+import '../../domain/repositories/login_repository.dart';
+import '../datasources/login_remote_datasource.dart';
+import '../models/user_model.dart';
+
+class LoginRepositoryImpl implements LoginRepository {
+  LoginRepositoryImpl({required this.datasource});
+
+  final LoginRemoteDatasource datasource;
+
+  @override
+  Future<ApiResult<UserModel>> login({
+    required String emailOrPhone,
+    required String password,
+  }) async {
+    return datasource.login(
+      emailOrPhone: emailOrPhone,
+      password: password,
+    );
+  }
+}
+''';
+  }
+
+  static String loginUsecase() {
+    return '''
+import 'package:dio_extended/models/api_result.dart';
+
+import '../../data/models/user_model.dart';
+import '../repositories/login_repository.dart';
+
+class LoginUser {
+  LoginUser({required this.repository});
+
+  final LoginRepository repository;
+
+  Future<ApiResult<UserModel>> call({
+    required String emailOrPhone,
+    required String password,
+  }) async {
+    return repository.login(
+      emailOrPhone: emailOrPhone,
+      password: password,
+    );
+  }
+}
+''';
+  }
+
+  static String loginProviderClean() {
+    return '''
+import 'package:dio_extended/models/api_result.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+import '../../data/datasources/login_remote_datasource.dart';
+import '../../data/repositories/login_repository_impl.dart';
+import '../../data/models/user_model.dart';
+import '../../domain/repositories/login_repository.dart';
+import '../../domain/usecases/login_user.dart';
+import '../../../../core/services/base_connection.dart';
+
+part 'login_provider.g.dart';
+
+@riverpod
+LoginRemoteDatasource loginDatasource(Ref ref) =>
+    LoginRemoteDatasource(BaseConnection());
+
+@riverpod
+LoginRepository loginRepository(Ref ref) => LoginRepositoryImpl(
+      datasource: ref.read(loginDatasourceProvider),
+    );
+
+@riverpod
+LoginUser loginUser(Ref ref) => LoginUser(
+      repository: ref.read(loginRepositoryProvider),
+    );
+
+@riverpod
+class LoginController extends _\$LoginController {
+  @override
+  AsyncValue<ApiResult<UserModel>> build() {
+    return AsyncData(ApiResult<UserModel>.idle());
+  }
+
+  Future<void> login({
+    required String emailOrPhone,
+    required String password,
+  }) async {
+    state = const AsyncLoading();
+
+    final usecase = ref.read(loginUserProvider);
+    final result = await AsyncValue.guard(
+      () => usecase(
+        emailOrPhone: emailOrPhone,
+        password: password,
+      ),
+    );
+
+    if (!ref.mounted) return;
+    state = result;
   }
 }
 ''';
@@ -360,7 +647,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'login_provider.g.dart'; 
 
 @riverpod
-class LoginNotifier extends _\$LoginNotifier {
+class LoginController extends _\$LoginController {
   @override
   FutureOr<void> build() {
     // initial state
@@ -407,28 +694,27 @@ class _LoginViewState extends ConsumerState<LoginView> {
   void initState() {
     super.initState();
 
-    // Side-effects should be registered once
-    ref.listenManual(loginProvider, (_, next) {
-      next.whenOrNull(
-        data: (_) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Side-effects should be registered once
+      ref.listenManual(loginControllerProvider, (_, next) {
+        next.whenOrNull(
+          data: (_) {
             if (!mounted) return;
             context.go(Routes.home);
-          });
-        },
-        error: (err, _) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
+          },
+          error: (err, _) {
             XSnackbar.error(err.toString());
-          });
-        },
-      );
+          },
+        );
+      });
     });
   }
 
   @override
   Widget build(BuildContext context) {
     // Watch for UI updates (loading state)
-    final asyncLogin = ref.watch(loginProvider);
+    final asyncLogin = ref.watch(loginControllerProvider);
     final form = ref.watch(loginFormProvider);
 
     return Scaffold(
@@ -474,9 +760,106 @@ class _LoginViewState extends ConsumerState<LoginView> {
                     final valid = form.formKey.currentState?.validate() ?? false;
                     if (!valid) return;
 
-                    await ref.read(loginProvider.notifier).login(
+                    await ref.read(loginControllerProvider.notifier).login(
                           emailOrPhone: form.emailOrPhone.text.trim(),
                           password: form.password.text.trim(),
+                        );
+                  },
+                  child: Text(R.string.login),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+''';
+  }
+
+  static String loginViewClean() {
+    return '''
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:xwidgets_pack/utils/x_form_validators.dart';
+import 'package:xwidgets_pack/xwidgets.dart';
+
+import '../../../../core/l10n/string_resources.dart';
+import '../../../../routes/routes.dart';
+import '../providers/login_form_provider.dart';
+import '../providers/login_provider.dart';
+
+class LoginView extends ConsumerStatefulWidget {
+  const LoginView({super.key});
+
+  @override
+  ConsumerState<LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends ConsumerState<LoginView> {
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Side-effects should be registered once
+      ref.listenManual(loginControllerProvider, (_, next) {
+        next.whenOrNull(
+          data: (result) {
+            if (!mounted) return;
+            XSnackbar.success('Result: \$result');
+            context.go(Routes.home);
+          },
+          error: (err, _) {
+            XSnackbar.error(err.toString());
+          },
+        );
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final asyncLogin = ref.watch(loginControllerProvider);
+    final form = ref.watch(loginFormProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: Center(
+        child: XCard(
+          width: 460,
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: form.formKey,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(R.string.loginTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                Text(R.string.loginSubTitle, style: const TextStyle()),
+                XHeight(16),
+                XTextField(
+                  labelOnLine: R.string.phone,
+                  controller: form.emailOrPhone,
+                  validator: XFormValidator.combine([XFormValidator.required(), XFormValidator.phoneNumber()]),
+                ),
+                XTextField(
+                  labelOnLine: R.string.password,
+                  isObscureText: true,
+                  controller: form.password,
+                  validator: XFormValidator.required(),
+                ),
+                XHeight(16),
+                XButton(
+                  width: 300,
+                  isLoading: asyncLogin.isLoading,
+                  onPressed: () async {
+                    if (!form.formKey.currentState!.validate()) return;
+                    await ref.read(loginControllerProvider.notifier).login(
+                          emailOrPhone: form.emailOrPhone.text,
+                          password: form.password.text,
                         );
                   },
                   child: Text(R.string.login),

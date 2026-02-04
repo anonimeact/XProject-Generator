@@ -374,6 +374,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:secure_compressor/secure_compressor.dart';
+import 'package:xwidgets_pack/xwidgets.dart';
 import 'routes/app_pages.dart';
 import 'routes/app_routes.dart';
 import 'theme/app_theme.dart';
@@ -398,6 +399,7 @@ class App extends StatelessWidget {
         theme: AppTheme.lightTheme(),
         darkTheme: AppTheme.darkTheme(),
         themeMode: ThemeMode.system,
+        navigatorKey: XSnackbar.navigatorKey,
         initialRoute: Routes.splash,
         getPages: AppPages.routes,
         navigatorObservers: [
@@ -515,13 +517,80 @@ Future<void> initApp(Environment env) async {
 ''';
   }
 
+  /// Returns the Dart code for the main App widget for Bloc projects.
+  static String appWidgetBloc(ProjectConfig config) {
+    return '''
+import 'package:dio_extended/diox.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:secure_compressor/secure_compressor.dart';
+import 'core/l10n/string_resources.dart';
+import 'core/config/env_config.dart';
+import 'core/l10n/generated/app_localizations.dart';
+import 'routes/app_router.dart';
+import 'theme/app_theme.dart';
+
+enum Environment { development, staging, production }
+
+class App extends StatelessWidget {
+  const App({super.key, required this.env});
+
+  final Environment env;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      debugShowCheckedModeBanner: false,
+      title: '${config.appDisplayName}',
+      theme: AppTheme.lightTheme(),
+      darkTheme: AppTheme.darkTheme(),
+      themeMode: ThemeMode.system,
+      routerConfig: appRouter,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      locale: const Locale('en'),
+      supportedLocales: const [Locale('en'), Locale('id')],
+      builder: (context, child) {
+        R.init(context);
+        return child!;
+      },
+    );
+  }
+}
+
+/// Call this method during app initialization in each main_*.dart file
+/// to setup base services like StorageHelper, etc.
+/// For other initializations, please do that inside
+/// splash screen or relevant places
+/// to avoid blank screen on app start in iOS
+Future<void> initApp(Environment env) async {
+  /// Initialized main base services here
+  /// For other initializations, please do that inside
+  /// splash screen or relevant places
+  /// to avoid blank screen on app start in iOS
+  
+  ShakeChuckerConfigs.initialize(showOnRelease: env != .production, showNotification: false);
+
+  /// Load environment configuration
+  await EnvConfig.load(env.name);
+
+  /// Initialize secure storage
+  await StorageHelper.initialize('${config.appName}', isEncryptKeyAndValue: true);
+}
+''';
+  }
+
   /// Returns the Dart code for the main entry file (main_*.dart) for a given [environment].
   static String mainFile(ProjectConfig config, String environment) {
-    final isGetX = config.stateManagement == StateManagement.getx;
+    final isRiverpod = config.stateManagement == StateManagement.riverpod;
 
     return '''
 import 'package:flutter/material.dart';
-${isGetX ? '' : "import 'package:flutter_riverpod/flutter_riverpod.dart';"}
+${isRiverpod ? "import 'package:flutter_riverpod/flutter_riverpod.dart';" : ''}
 import 'app.dart';
 
 void main() async {
@@ -531,7 +600,7 @@ void main() async {
   // Load environment configuration
   await initApp(env);
 
-  runApp(${isGetX ? 'App(env: env)' : 'ProviderScope(child: App(env: env))'});
+  runApp(${isRiverpod ? 'ProviderScope(child: App(env: env))' : 'App(env: env)'});
 }
 ''';
   }
@@ -682,6 +751,37 @@ class BaseConnection extends DioExtended {
 ''';
   }
 
+  static String baseConnectionBloc() {
+    return '''
+import 'package:dio_extended/diox.dart';
+
+import '../../sessions/user_session.dart';
+import '../config/env_config.dart';
+
+class BaseConnection extends DioExtended {
+
+  BaseConnection._internal()
+    : super(baseUrl: EnvConfig.apiBaseUrl, headers: _buildAuthHeaders(), tokenExpiredCode: 402);
+
+  static final BaseConnection _instance = BaseConnection._internal();
+  factory BaseConnection() => _instance;
+
+  @override
+  Future<dynamic> handleTokenExpired() async {
+    /// Fetch your new token here
+    /// .........
+    return _buildAuthHeaders();
+  }
+
+  static Map<String, String> _buildAuthHeaders() {
+    final token = UserSessions.getToken();
+    if (token == null) return {};
+    return {'token': token};
+  }
+}
+''';
+  }
+
   /// Returns the Dart code for the UserSessions class for GetX projects.
   static String userSessionsGetx() {
     return '''
@@ -784,6 +884,56 @@ class UserSessions {
 ''';
   }
 
+  /// Returns the Dart code for the UserSessions class for Bloc projects.
+  static String userSessionsBloc() {
+    return '''
+import 'dart:convert';
+
+import 'package:secure_compressor/secure_compressor.dart';
+
+import '../features/login/data/models/user_model.dart';
+
+class UserSessions {
+  // Singleton instance
+  static final UserSessions _instance = UserSessions._internal();
+
+  // Private constructor
+  UserSessions._internal();
+
+  // Factory constructor to return the singleton instance
+  factory UserSessions() => _instance;
+
+  static const String dataUserKey = 'dataUserKey';
+  static const String dataTokenKey = 'dataTokenKey';
+
+  static void saveUserData({UserModel? userData, dynamic userDataMap}) {
+    if (userData == null && userDataMap == null) return;
+    final dataUserString = userData != null ? jsonEncode(userData.toJson()) : userDataMap.toString();
+    StorageHelper.saveString(key: dataUserKey, value: dataUserString);
+  }
+
+  static UserModel? getUserData() {
+    final dataUserString = StorageHelper.getString(key: dataUserKey);
+    if (dataUserString == null) {
+      return null;
+    }
+    return UserModel.fromJson(jsonDecode(dataUserString));
+  }
+
+  static void saveToken(String token) {
+    StorageHelper.saveString(key: dataTokenKey, value: token);
+  }
+  static String? getToken() {
+    return StorageHelper.getString(key: dataTokenKey);
+  }
+
+  static void deletUserData(){
+    StorageHelper.clear();
+  }
+}
+''';
+  }
+
   /// TextStyle helper
   static String textStyleHelperGetx() {
     return '''
@@ -856,6 +1006,47 @@ TextStyle styleMedium(WidgetRef ref, {double? size = 14, Color? color, FontWeigh
 TextStyle styleSmall(WidgetRef ref, {double? size = 14, Color? color, FontWeight? weight}) {
   final isDarkMode = ref.watch(isDarkModeProvider);
   final width = ref.watch(widthProvider);
+
+  return TextStyle(
+    fontSize: width > 500 ? size! * 1.3 : size,
+    fontWeight: weight ?? FontWeight.normal,
+    color: color ?? (isDarkMode ? AppColor.bgLight : AppColor.title),
+  );
+}
+''';
+  }
+
+  static String textStyleHelperBloc() {
+    return '''
+import 'package:flutter/material.dart';
+
+import 'app_color.dart';
+
+TextStyle styleLarge(BuildContext context, {double? size = 14, Color? color, FontWeight? weight}) {
+  final width = MediaQuery.of(context).size.width;
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+  return TextStyle(
+    fontSize: width > 500 ? size! * 1.4 : size,
+    fontWeight: weight ?? FontWeight.bold,
+    color: color ?? (isDarkMode ? AppColor.bgLight : AppColor.title),
+  );
+}
+
+TextStyle styleMedium(BuildContext context, {double? size = 14, Color? color, FontWeight? weight}) {
+  final width = MediaQuery.of(context).size.width;
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+  return TextStyle(
+    fontSize: width > 500 ? size! * 1.4 : size,
+    fontWeight: weight ?? FontWeight.w600,
+    color: color ?? (isDarkMode ? AppColor.bgLight : AppColor.title),
+  );
+}
+
+TextStyle styleSmall(BuildContext context, {double? size = 14, Color? color, FontWeight? weight}) {
+  final width = MediaQuery.of(context).size.width;
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
   return TextStyle(
     fontSize: width > 500 ? size! * 1.3 : size,

@@ -11,7 +11,9 @@ import 'package:path/path.dart' as path;
 ///
 /// See README.md for more details.
 
-enum StateManagement { getx, riverpod }
+enum StateManagement { getx, riverpod, bloc }
+
+enum StateManagementArchitecture { simple, clean }
 
 class ProjectConfig {
   ProjectConfig({
@@ -21,6 +23,8 @@ class ProjectConfig {
     required this.iosBundleId,
     required this.stateManagement,
     required this.useFirebase,
+    this.blocArchitecture,
+    this.riverpodArchitecture,
   });
 
   final String appName;
@@ -29,6 +33,8 @@ class ProjectConfig {
   final String iosBundleId;
   final StateManagement stateManagement;
   final bool useFirebase;
+  final StateManagementArchitecture? blocArchitecture;
+  final StateManagementArchitecture? riverpodArchitecture;
 
   // Display
   String get appDisplayName => displayName;

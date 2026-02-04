@@ -128,7 +128,9 @@ class ProjectGenerator {
     logger.info(
       '  flutter run --flavor development -t lib/main_development.dart',
     );
-    logger.info('or: \n  Go to Run and Debug icon in left panel in VSCode, and select env that you want to run');
+    logger.info(
+      'or: \n  Go to Run and Debug icon in left panel in VSCode, and select env that you want to run',
+    );
   }
 
   /// Collect user input for project creation (name, package, state management, etc.).
@@ -218,8 +220,33 @@ class ProjectGenerator {
     // 5️⃣ State management
     final stateManagementIndex = Select(
       prompt: 'Select state management',
-      options: ['GetX', 'Riverpod'],
+      options: ['Bloc', 'GetX', 'Riverpod'],
     ).interact();
+
+    StateManagementArchitecture? blocArchitecture;
+    StateManagementArchitecture? riverpodArchitecture;
+    if (stateManagementIndex == 0) {
+      final blocArchitectureIndex = Select(
+        prompt: 'Select Bloc architecture',
+        options: ['Bloc Simple', 'Bloc Clean Code (Using domain layer)'],
+      ).interact();
+      blocArchitecture = blocArchitectureIndex == 0
+          ? StateManagementArchitecture.simple
+          : StateManagementArchitecture.clean;
+    }
+
+    if (stateManagementIndex == 2) {
+      final riverpodArchitectureIndex = Select(
+        prompt: 'Select Riverpod architecture',
+        options: [
+          'Riverpod Simple',
+          'Riverpod Clean Code (Using domain layer)',
+        ],
+      ).interact();
+      riverpodArchitecture = riverpodArchitectureIndex == 0
+          ? StateManagementArchitecture.simple
+          : StateManagementArchitecture.clean;
+    }
 
     return ProjectConfig(
       appName: appName, // snake_case (Flutter-safe)
@@ -228,8 +255,12 @@ class ProjectGenerator {
       iosBundleId: iosBundleId,
       useFirebase: useFirebase,
       stateManagement: stateManagementIndex == 0
+          ? StateManagement.bloc
+          : stateManagementIndex == 1
           ? StateManagement.getx
           : StateManagement.riverpod,
+      blocArchitecture: blocArchitecture,
+      riverpodArchitecture: riverpodArchitecture,
     );
   }
 
