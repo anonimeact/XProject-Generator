@@ -844,4 +844,8 @@ dependencies {
 
     return Directory.fromUri(uri);
   }
+
+  // TODO: add ignote g and freezed files in gitignore
+//  *.g.dart
+// *.freezed.dart
 }

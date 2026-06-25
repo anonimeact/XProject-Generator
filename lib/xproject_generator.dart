@@ -44,14 +44,18 @@ class ProjectGenerator {
     logger.info('\n 📝 Next steps:');
     logger.info('  - cd ${config.appName}');
     logger.info('  - flutter pub get');
-    logger.info(
-      '\n 🔑 Setup secret keys for SecureCompressor manually and generate secretkey.dart file using secret_key_scrypt_generator package',
-    );
-    logger.info('  - Add your secret keys in secretkey.dart file located at:');
-    logger.info('    lib/core/config/secretkey.dart');
-    logger.info(
-      '  - Refer to https://pub.dev/packages/secret_key_scrypt_generator for generating secretkey.dart file',
-    );
+    if (config.useSecretKey) {
+      logger.info(
+        '\n 🔑 Setup secret keys for SecureCompressor manually and generate secretkey.dart file using secret_key_scrypt_generator package',
+      );
+      logger.info(
+        '  - Add your secret keys in secretkey.dart file located at:',
+      );
+      logger.info('    lib/core/config/secretkey.dart');
+      logger.info(
+        '  - Refer to https://pub.dev/packages/secret_key_scrypt_generator for generating secretkey.dart file',
+      );
+    }
     if (config.useFirebase) {
       logger.info('\n 🔥 Firebase setup:');
       logger.info(
@@ -248,12 +252,21 @@ class ProjectGenerator {
           : StateManagementArchitecture.clean;
     }
 
+    // Secret key option
+    final secretKeyInput = Input(
+      prompt: 'Use Secret Key (Generator Package)? (y/N): ',
+    ).interact().trim();
+    final useSecretKey =
+        secretKeyInput.toLowerCase() == 'y' ||
+        secretKeyInput.toLowerCase() == 'yes';
+
     return ProjectConfig(
       appName: appName, // snake_case (Flutter-safe)
       displayName: displayName, // human-readable
       androidPackage: androidPackage,
       iosBundleId: iosBundleId,
       useFirebase: useFirebase,
+      useSecretKey: useSecretKey,
       stateManagement: stateManagementIndex == 0
           ? StateManagement.bloc
           : stateManagementIndex == 1

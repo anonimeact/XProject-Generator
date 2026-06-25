@@ -107,13 +107,14 @@ class ${pascal}View extends GetView<${pascal}Controller> {
 
     return '''
 import 'package:dio_extended/models/api_result.dart';
+import 'package:get/get.dart';
 
 import '../../../../core/services/base_connection.dart';
 import '../../../../core/models/global_api_response.dart';
 
 class ${pascal}Provider {
 
-  final _connection = BaseConnection();
+  final BaseConnection _connection = Get.find<BaseConnection>();
 
   Future<ApiResult<GlobalApiResponse>> ${featureName}Data(dynamic body) async {
     return _connection.callApiRequest<GlobalApiResponse>(
@@ -131,12 +132,13 @@ class ${pascal}Provider {
   static String loginProvider() {
     return '''
 import 'package:dio_extended/models/api_result.dart';
+import 'package:get/get.dart';
 import '../../../core/services/base_connection.dart';
 import '../models/user_model.dart';
 
 class LoginProvider {
 
-final _connection = BaseConnection();
+final BaseConnection _connection = Get.find<BaseConnection>();
 
 Future<ApiResult<UserModel>> login(dynamic body) async {
     return _connection.callApiRequest<UserModel>(
@@ -213,8 +215,9 @@ class LoginController extends GetxController {
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:xwidgets_pack/utils/x_form_validators.dart';
-import 'package:xwidgets_pack/xwidgets.dart';
+
 import '../../../core/l10n/string_resources.dart';
+import '../widgets/auth_scaffold.dart';
 import '../controllers/login_controller.dart';
 
 class LoginView extends GetView<LoginController> {
@@ -222,43 +225,44 @@ class LoginView extends GetView<LoginController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: Obx(() {
-        return XCard(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
-          child: Center(
-            child: Form(
-              key: controller.formKey,
-              child: Column(
-                mainAxisAlignment: .center,
-                crossAxisAlignment: .center,
-                children: [
-                  Text(R.string.loginTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  Text(R.string.loginSubTitle, style: const TextStyle()),
-                  XHeight(16),
-                  XTextField(
-                    labelOnLine: R.string.phone,
-                    controller: controller.emailOrPhoneController,
-                    validator: XFormValidator.combine([XFormValidator.required(), XFormValidator.phoneNumber()]),
-                  ),
-                  XTextField(
-                    labelOnLine: R.string.password,
-                    isObscureText: true,
-                    controller: controller.passwordController,
-                    validator: XFormValidator.required(),
-                  ),
-                  XHeight(16),
-                  XButton(
-                    width: 300,
-                    isLoading: controller.isLoading.value,
-                    onPressed: controller.login,
-                    child: Text(R.string.login),
-                  ),
-                ],
+    return AuthScaffold(
+      title: R.string.homeWelcome,
+      subtitle: R.string.loginTitle,
+      hint: R.string.loginSubTitle,
+      child: Obx(() {
+        return Form(
+          key: controller.formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                controller: controller.emailOrPhoneController,
+                keyboardType: TextInputType.phone,
+                decoration: AuthDecorations.field(
+                  label: R.string.phone,
+                  icon: Icons.phone_outlined,
+                ),
+                validator: XFormValidator.combine([
+                  XFormValidator.required(),
+                  XFormValidator.phoneNumber(),
+                ]),
               ),
-            ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: controller.passwordController,
+                obscureText: true,
+                decoration: AuthDecorations.field(
+                  label: R.string.password,
+                  icon: Icons.lock_outline_rounded,
+                ),
+                validator: XFormValidator.required(),
+              ),
+              const SizedBox(height: 28),
+              AuthPrimaryButton(
+                label: R.string.login,
+                isLoading: controller.isLoading.value,
+                onPressed: controller.login,
+              ),
+            ],
           ),
         );
       }),
@@ -379,34 +383,18 @@ class SplashView extends GetView<SplashController> {
   /// Returns the Dart code for the HomeController class.
   static String homeController() {
     return '''
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../app.dart';
 import '../providers/home_provider.dart';
 
 class HomeController extends GetxController {
-  HomeController({
-    required this.provider,
-  });
+  HomeController({required this.provider});
 
   final HomeProvider provider;
 
-  final isDark = false.obs;
-  void toggleTheme() {
-    isDark.value = !isDark.value;
-    Get.changeThemeMode(isDark.value ? ThemeMode.dark : ThemeMode.light);
-  }
-  final locale = const Locale('en').obs;
-
-  void toggleLanguage() {
-    if (locale.value.languageCode == 'en') {
-      locale.value = const Locale('id');
-      Get.updateLocale(const Locale('id'));
-    } else {
-      locale.value = const Locale('en');
-      Get.updateLocale(const Locale('en'));
-    }
-  }
+  void toggleTheme() => AppController.to.toggleTheme();
+  void toggleLanguage() => AppController.to.toggleLanguage();
 }
 ''';
   }
@@ -435,7 +423,7 @@ class HomeBinding extends Bindings {
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../core/l10n/string_resources.dart';
+import '../widgets/home_shell.dart';
 import '../controllers/home_controller.dart';
 
 class HomeView extends GetView<HomeController> {
@@ -443,18 +431,9 @@ class HomeView extends GetView<HomeController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(R.string.homeView),
-        actions: [
-          IconButton(icon: const Icon(Icons.brightness_6), onPressed: controller.toggleTheme),
-          IconButton(icon: const Icon(Icons.language), onPressed: controller.toggleLanguage),
-        ],
-      ),
-      body: Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Text('Welcome Home :)')]),
-      ),
+    return HomeShell(
+      onToggleTheme: controller.toggleTheme,
+      onToggleLanguage: controller.toggleLanguage,
     );
   }
 }

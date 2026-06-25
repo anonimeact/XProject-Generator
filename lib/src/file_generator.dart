@@ -326,6 +326,11 @@ class FileGenerator {
     );
 
     await _writeFile(
+      path.join(libPath, 'features/home/widgets/home_shell.dart'),
+      CommonTemplates.homeShell('../../../'),
+    );
+
+    await _writeFile(
       path.join(libPath, 'features/home/providers/home_provider.dart'),
       GetxFeatureTemplate.generalProvider('home'),
     );
@@ -344,6 +349,11 @@ class FileGenerator {
     await _writeFile(
       path.join(libPath, 'features/login/views/login_view.dart'),
       GetxFeatureTemplate.loginView(),
+    );
+
+    await _writeFile(
+      path.join(libPath, 'features/login/widgets/auth_scaffold.dart'),
+      CommonTemplates.authScaffold('../../../'),
     );
 
     await _writeFile(
@@ -443,6 +453,14 @@ class FileGenerator {
     await _writeFile(
       path.join(
         libPath,
+        'features/login/presentation/widgets/auth_scaffold.dart',
+      ),
+      CommonTemplates.authScaffold('../../../../'),
+    );
+
+    await _writeFile(
+      path.join(
+        libPath,
         'features/login/presentation/views/login_form_fields.dart',
       ),
       RiverpodFeatureTemplate.loginFormField(),
@@ -460,6 +478,13 @@ class FileGenerator {
     await _writeFile(
       path.join(libPath, 'features/home/presentation/views/home_view.dart'),
       RiverpodFeatureTemplate.homeView(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/presentation/widgets/home_shell.dart',
+      ),
+      CommonTemplates.homeShell('../../../../'),
     );
     await _writeFile(
       path.join(
@@ -587,6 +612,14 @@ class FileGenerator {
     await _writeFile(
       path.join(
         libPath,
+        'features/login/presentation/widgets/auth_scaffold.dart',
+      ),
+      CommonTemplates.authScaffold('../../../../'),
+    );
+
+    await _writeFile(
+      path.join(
+        libPath,
         'features/login/presentation/views/login_form_fields.dart',
       ),
       RiverpodFeatureTemplate.loginFormField(),
@@ -604,6 +637,13 @@ class FileGenerator {
     await _writeFile(
       path.join(libPath, 'features/home/presentation/views/home_view.dart'),
       RiverpodFeatureTemplate.homeView(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/presentation/widgets/home_shell.dart',
+      ),
+      CommonTemplates.homeShell('../../../../'),
     );
     await _writeFile(
       path.join(
@@ -715,6 +755,13 @@ class FileGenerator {
       path.join(libPath, 'features/login/presentation/views/login_view.dart'),
       BlocFeatureTemplate.loginViewSimple(),
     );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/presentation/widgets/auth_scaffold.dart',
+      ),
+      CommonTemplates.authScaffold('../../../../'),
+    );
 
     // Home Feature
     await _writeFile(
@@ -742,7 +789,14 @@ class FileGenerator {
     );
     await _writeFile(
       path.join(libPath, 'features/home/presentation/views/home_view.dart'),
-      BlocFeatureTemplate.generalViewSimple('home'),
+      BlocFeatureTemplate.homeView(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/presentation/widgets/home_shell.dart',
+      ),
+      CommonTemplates.homeShell('../../../../'),
     );
 
     await _writeFile(
@@ -833,6 +887,13 @@ class FileGenerator {
       path.join(libPath, 'features/login/presentation/views/login_view.dart'),
       BlocFeatureTemplate.loginView(),
     );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/presentation/widgets/auth_scaffold.dart',
+      ),
+      CommonTemplates.authScaffold('../../../../'),
+    );
 
     // Home Feature
     await _writeFile(
@@ -878,7 +939,14 @@ class FileGenerator {
     );
     await _writeFile(
       path.join(libPath, 'features/home/presentation/views/home_view.dart'),
-      BlocFeatureTemplate.generalView('home'),
+      BlocFeatureTemplate.homeView(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/presentation/widgets/home_shell.dart',
+      ),
+      CommonTemplates.homeShell('../../../../'),
     );
 
     await _writeFile(
@@ -927,15 +995,21 @@ class FileGenerator {
       CommonTemplates.envConfig(),
     );
 
-    await _writeFile(
-      path.join(libPath, 'core/config/get_env.dart'),
-      CommonTemplates.getEnv(),
-    );
-
-    await _writeFile(
-      path.join(libPath, 'core/config/cryptic.dart'),
-      CommonTemplates.cryptic(),
-    );
+    if (config.useSecretKey) {
+      await _writeFile(
+        path.join(libPath, 'core/config/get_env.dart'),
+        CommonTemplates.getEnv(),
+      );
+      await _writeFile(
+        path.join(libPath, 'core/config/cryptic.dart'),
+        CommonTemplates.cryptic(),
+      );
+    } else {
+      await _writeFile(
+        path.join(libPath, 'core/config/get_env.dart'),
+        CommonTemplates.getEnvSimple(),
+      );
+    }
 
     /// Firebase
     if (config.useFirebase) {

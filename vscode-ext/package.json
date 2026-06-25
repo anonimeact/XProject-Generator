@@ -1,0 +1,63 @@
+{
+  "name": "xproject-generator",
+  "displayName": "XProject Generator",
+  "description": "Run XProject Generator from VS Code Tasks.",
+  "version": "0.1.0",
+  "publisher": "anonimeact",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "XProject Generator",
+      "properties": {
+        "xprojectGenerator.command": {
+          "type": "string",
+          "default": "xproject",
+          "description": "Command used to run XProject Generator (e.g. 'xproject' or 'dart run xproject_generator:xproject')."
+        },
+        "xprojectGenerator.cwd": {
+          "type": "string",
+          "default": "${workspaceFolder}",
+          "description": "Working directory used when running XProject Generator."
+        }
+      }
+    },
+    "taskDefinitions": [
+      {
+        "type": "xproject",
+        "required": ["action"],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "Task action (create|feature)."
+          }
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "xprojectGenerator.runCreate",
+        "title": "XProject: Create Project (Task)"
+      },
+      {
+        "command": "xprojectGenerator.runFeature",
+        "title": "XProject: Add Feature (Task)"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -p . -w",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.7.3"
+  }
+}

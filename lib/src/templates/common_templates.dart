@@ -49,6 +49,9 @@ class AppColor {
   static const border = Color(0xFFE2E8F0);
   static const inactive = Color(0xFFCBD5E0);
   static const divider = Color(0xFFEDF2F7);
+
+  static const inputFill = Color(0xFFF1F5F9);
+  static const onPrimary = Color(0xFFFFFFFF);
 }
 ''';
   }
@@ -62,38 +65,79 @@ import 'package:flutter/services.dart';
 import 'app_color.dart';
 
 class AppTheme {
+  static const _lightScheme = ColorScheme.light(
+    primary: AppColor.primary,
+    onPrimary: AppColor.onPrimary,
+    secondary: AppColor.secondary,
+    onSecondary: AppColor.onPrimary,
+    surface: AppColor.surface,
+    onSurface: AppColor.title,
+    error: AppColor.error,
+    onError: AppColor.onPrimary,
+  );
+
+  static const _darkScheme = ColorScheme.dark(
+    primary: AppColor.primary,
+    onPrimary: AppColor.onPrimary,
+    secondary: AppColor.secondary,
+    surface: Color(0xFF1E293B),
+    onSurface: Color(0xFFF1F5F9),
+    error: AppColor.error,
+    onError: AppColor.onPrimary,
+  );
+
+  static InputDecorationTheme _inputTheme({required bool isDark}) {
+    return InputDecorationTheme(
+      filled: true,
+      fillColor: isDark ? const Color(0xFF334155) : AppColor.inputFill,
+      hintStyle: TextStyle(color: isDark ? const Color(0xFF94A3B8) : AppColor.subtitle),
+      labelStyle: TextStyle(color: isDark ? const Color(0xFFCBD5E1) : AppColor.body, fontSize: 13),
+      prefixIconColor: AppColor.primary,
+      suffixIconColor: isDark ? const Color(0xFF94A3B8) : AppColor.subtitle,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: isDark ? const Color(0xFF475569) : AppColor.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColor.primary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColor.error),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColor.error, width: 1.5),
+      ),
+    );
+  }
+
   static ThemeData lightTheme() {
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.blue,
-        brightness: Brightness.light,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.grey[100],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.blue, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red, width: 1),
-        ),
+      brightness: Brightness.light,
+      colorScheme: _lightScheme,
+      scaffoldBackgroundColor: AppColor.bgLight,
+      inputDecorationTheme: _inputTheme(isDark: false),
+      textSelectionTheme: const TextSelectionThemeData(
+        cursorColor: AppColor.primary,
+        selectionColor: AppColor.primaryLight,
+        selectionHandleColor: AppColor.primary,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
+          backgroundColor: AppColor.primary,
+          foregroundColor: AppColor.onPrimary,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),
@@ -126,23 +170,24 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         centerTitle: true,
         backgroundColor: AppColor.bgLight,
+        foregroundColor: AppColor.title,
         scrolledUnderElevation: 0,
         titleTextStyle: const TextStyle(
           fontWeight: FontWeight.w600,
           color: AppColor.title,
           fontSize: 16,
-          fontFamily: 'Inter'
+          fontFamily: 'Inter',
         ),
-        iconTheme: IconThemeData(color: AppColor.bgLight),
+        iconTheme: const IconThemeData(color: AppColor.title),
         elevation: 0,
-        actionsIconTheme: IconThemeData(color: AppColor.bgLight),
+        actionsIconTheme: const IconThemeData(color: AppColor.title),
         systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: AppColor.bgLight,
+          statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
         ),
       ),
       tabBarTheme: TabBarThemeData(
-        indicatorColor: AppColor.bgDark,
+        indicatorColor: AppColor.primary,
       ),
     );
   }
@@ -150,84 +195,477 @@ class AppTheme {
   static ThemeData darkTheme() {
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.blue,
-        brightness: Brightness.dark,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.grey[800],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.blue, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red, width: 1),
-        ),
+      brightness: Brightness.dark,
+      colorScheme: _darkScheme,
+      scaffoldBackgroundColor: AppColor.bgDark,
+      inputDecorationTheme: _inputTheme(isDark: true),
+      textSelectionTheme: const TextSelectionThemeData(
+        cursorColor: AppColor.primary,
+        selectionColor: AppColor.primaryDark,
+        selectionHandleColor: AppColor.primary,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
+          backgroundColor: AppColor.primary,
+          foregroundColor: AppColor.onPrimary,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),
       textTheme: const TextTheme(
         labelLarge: TextStyle(
-          color: AppColor.title,
+          color: Color(0xFFE2E8F0),
           fontSize: 14,
           fontWeight: FontWeight.w500,
-          fontFamily: 'Inter'
+          fontFamily: 'Inter',
         ),
         titleLarge: TextStyle(
-          color: AppColor.title,
+          color: Color(0xFFF1F5F9),
           fontSize: 14,
           fontFamily: 'Inter',
-          fontWeight: FontWeight.w600
+          fontWeight: FontWeight.w600,
         ),
         titleMedium: TextStyle(
-          color: AppColor.title,
+          color: Color(0xFFE2E8F0),
           fontSize: 14,
           fontFamily: 'Inter',
-          fontWeight: FontWeight.w500
+          fontWeight: FontWeight.w500,
         ),
         titleSmall: TextStyle(
-          color: AppColor.title,
+          color: Color(0xFFCBD5E1),
           fontSize: 12,
           fontFamily: 'Inter',
-          fontWeight: FontWeight.w400
-        )
+          fontWeight: FontWeight.w400,
+        ),
       ),
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         centerTitle: true,
-        backgroundColor: AppColor.bgLight,
+        backgroundColor: AppColor.bgDark,
+        foregroundColor: Color(0xFFF1F5F9),
         scrolledUnderElevation: 0,
-        titleTextStyle: const TextStyle(
+        titleTextStyle: TextStyle(
           fontWeight: FontWeight.w600,
-          color: AppColor.title,
+          color: Color(0xFFF1F5F9),
           fontSize: 16,
-          fontFamily: 'Inter'
+          fontFamily: 'Inter',
         ),
-        iconTheme: IconThemeData(color: AppColor.bgLight),
+        iconTheme: IconThemeData(color: Color(0xFFF1F5F9)),
         elevation: 0,
-        actionsIconTheme: IconThemeData(color: AppColor.bgLight),
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: AppColor.bgLight,
-          statusBarIconBrightness: Brightness.dark,
+        actionsIconTheme: IconThemeData(color: Color(0xFFF1F5F9)),
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
         ),
       ),
-      tabBarTheme: TabBarThemeData(
-        indicatorColor: AppColor.bgDark,
+      tabBarTheme: const TabBarThemeData(
+        indicatorColor: AppColor.primary,
+      ),
+    );
+  }
+}
+''';
+  }
+
+  /// Shared auth page shell — light layout with wave header and card form.
+  ///
+  /// [libPrefix] is the relative path from the widget's folder back to `lib/`
+  /// (e.g. `../../../` for GetX, `../../../../` for Riverpod/Bloc).
+  static String authScaffold(String libPrefix) {
+    return '''
+import 'package:flutter/material.dart';
+
+import '${libPrefix}theme/app_color.dart';
+import '${libPrefix}theme/app_theme.dart';
+
+class AuthWaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 48);
+    path.quadraticBezierTo(
+      size.width * 0.5,
+      size.height + 16,
+      size.width,
+      size.height - 48,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+/// Light auth layout with gradient wave header and floating form card.
+/// Always uses [AppTheme.lightTheme] so fields stay readable regardless of device theme.
+class AuthScaffold extends StatelessWidget {
+  const AuthScaffold({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.child,
+    this.hint,
+  });
+
+  final String title;
+  final String subtitle;
+  final String? hint;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: AppTheme.lightTheme(),
+      child: Scaffold(
+        backgroundColor: AppColor.bgLight,
+        resizeToAvoidBottomInset: true,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 32),
+            child: Column(
+              children: [
+                ClipPath(
+                  clipper: AuthWaveClipper(),
+                  child: Container(
+                    height: 200,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppColor.primary, AppColor.secondary],
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.22),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.lock_outline_rounded,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Transform.translate(
+                  offset: const Offset(0, -28),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+                      decoration: BoxDecoration(
+                        color: AppColor.surface,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColor.primary.withValues(alpha: 0.08),
+                            blurRadius: 24,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                              color: AppColor.title,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            width: 36,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: AppColor.primary,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          if (hint != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              hint!,
+                              style: const TextStyle(
+                                color: AppColor.subtitle,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                          child,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AuthDecorations {
+  static InputDecoration field({
+    required String label,
+    required IconData icon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, size: 20),
+      suffixIcon: suffixIcon,
+    );
+  }
+}
+
+class AuthPrimaryButton extends StatelessWidget {
+  const AuthPrimaryButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.isLoading = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        child: isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+              )
+            : Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
+      ),
+    );
+  }
+}
+''';
+  }
+
+  /// Shared home page shell with gradient header and quick-action cards.
+  ///
+  /// [libPrefix] is the relative path from the widget's folder back to `lib/`
+  /// (e.g. `../../../` for GetX, `../../../../` for Riverpod/Bloc).
+  static String homeShell(String libPrefix) {
+    return '''
+import 'package:flutter/material.dart';
+
+import '${libPrefix}theme/app_color.dart';
+import '${libPrefix}core/l10n/string_resources.dart';
+
+class HomeShell extends StatelessWidget {
+  const HomeShell({
+    super.key,
+    required this.onToggleTheme,
+    required this.onToggleLanguage,
+  });
+
+  final VoidCallback onToggleTheme;
+  final VoidCallback onToggleLanguage;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                padding: const EdgeInsets.fromLTRB(20, 20, 12, 28),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColor.primary, AppColor.secondary],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColor.primary.withValues(alpha: 0.25),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            R.string.homeView,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: onToggleTheme,
+                          icon: const Icon(Icons.brightness_6_outlined, color: Colors.white),
+                        ),
+                        IconButton(
+                          onPressed: onToggleLanguage,
+                          icon: const Icon(Icons.language_outlined, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      R.string.homeWelcome,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      R.string.homeSubtitle,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.75),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1.15,
+                ),
+                delegate: SliverChildListDelegate([
+                  _HomeActionCard(
+                    icon: Icons.explore_outlined,
+                    label: R.string.homeExplore,
+                    color: AppColor.primary,
+                  ),
+                  _HomeActionCard(
+                    icon: Icons.notifications_outlined,
+                    label: R.string.homeNotifications,
+                    color: AppColor.secondary,
+                  ),
+                  _HomeActionCard(
+                    icon: Icons.person_outline_rounded,
+                    label: R.string.homeProfile,
+                    color: AppColor.accent,
+                  ),
+                  _HomeActionCard(
+                    icon: Icons.settings_outlined,
+                    label: R.string.homeSettings,
+                    color: AppColor.primaryDark,
+                  ),
+                ]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeActionCard extends StatelessWidget {
+  const _HomeActionCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              color: theme.colorScheme.onSurface,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -312,6 +750,45 @@ class GetEnv {
 ''';
   }
 
+  /// Returns the Dart code for a simplified GetEnv class (no secret key / no encryption).
+  /// Used when the project is created without the secret_key_scrypt_generator package.
+  static String getEnvSimple() {
+    return '''
+import 'package:flutter/services.dart';
+
+class GetEnv {
+  static final Map<String, Map<String, dynamic>> _cache = {};
+
+  static Future<void> initialize(String env) async {
+    final content = await rootBundle.loadString('.env.\$env');
+    _cache[env] = _parse(content);
+  }
+
+  static String get(String key, String env) {
+    return _cache[env]?[key]?.toString() ?? '';
+  }
+
+  static Map<String, dynamic> _parse(String content) {
+    final Map<String, dynamic> map = {};
+    for (final line in content.split('\\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
+      final index = trimmed.indexOf('=');
+      if (index == -1) continue;
+      final key = trimmed.substring(0, index).trim();
+      final value = trimmed.substring(index + 1).trim();
+      map[key] = value.toLowerCase() == 'true'
+          ? true
+          : value.toLowerCase() == 'false'
+          ? false
+          : value;
+    }
+    return map;
+  }
+}
+''';
+  }
+
   /// Returns the Dart code for the EnvConfig class, which loads and provides environment variables.
   static String envConfig() {
     return '''
@@ -381,8 +858,31 @@ import 'theme/app_theme.dart';
 import 'core/l10n/string_resources.dart';
 import 'core/l10n/generated/app_localizations.dart';
 import 'core/config/env_config.dart';
+import 'core/services/base_connection.dart';
+${config.useSecretKey ? "import 'core/config/secretkey.dart';" : ''}
 
 enum Environment { development, staging, production }
+
+/// Permanent controller that owns app-wide state: theme + locale.
+/// Uses Get.changeThemeMode / Get.updateLocale so GetMaterialController
+/// (which is the source of truth for GetMaterialApp) is always updated.
+class AppController extends GetxController {
+  static AppController get to => Get.find<AppController>();
+
+  bool _isDark = false;
+
+  void toggleTheme() {
+    _isDark = !_isDark;
+    Get.changeThemeMode(_isDark ? ThemeMode.dark : ThemeMode.light);
+  }
+
+  void toggleLanguage() {
+    final next = Get.locale?.languageCode == 'en'
+        ? const Locale('id')
+        : const Locale('en');
+    Get.updateLocale(next);
+  }
+}
 
 class App extends StatelessWidget {
   const App({super.key, required this.env});
@@ -398,13 +898,11 @@ class App extends StatelessWidget {
         title: '${config.appDisplayName}',
         theme: AppTheme.lightTheme(),
         darkTheme: AppTheme.darkTheme(),
-        themeMode: ThemeMode.system,
+        themeMode: ThemeMode.light,
         navigatorKey: XSnackbar.navigatorKey,
         initialRoute: Routes.splash,
         getPages: AppPages.routes,
-        navigatorObservers: [
-          ShakeChuckerConfigs.navigatorObserver
-        ],
+        navigatorObservers: [ShakeChuckerConfigs.navigatorObserver],
         localizationsDelegates: const [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
@@ -436,11 +934,17 @@ Future<void> initApp(Environment env) async {
   
   ShakeChuckerConfigs.initialize(showOnRelease: env != .production, showNotification: false);
 
+  /// Initialize secure storage first — required before any StorageHelper usage
+  await StorageHelper.initialize('${config.appName}', isEncryptKeyAndValue: ${config.useSecretKey});
+
   /// Load environment configuration
   await EnvConfig.load(env.name);
 
-  /// Initialize secure storage
-  await StorageHelper.initialize('${config.appName}', isEncryptKeyAndValue: true);
+  /// Register app-wide state controller (theme + locale) permanently
+  Get.put<AppController>(AppController(), permanent: true);
+
+  /// Register shared API connection (single instance for the app lifecycle)
+  Get.put<BaseConnection>(BaseConnection(), permanent: true);
 }
 ''';
   }
@@ -460,6 +964,7 @@ import 'routes/app_router.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_provider.dart';
 import 'core/l10n/locale_provider.dart';
+${config.useSecretKey ? "import 'core/config/secretkey.dart';" : ''}
 
 enum Environment { development, staging, production }
 
@@ -508,11 +1013,11 @@ Future<void> initApp(Environment env) async {
   
   ShakeChuckerConfigs.initialize(showOnRelease: env != .production, showNotification: false);
 
+  /// Initialize secure storage first — required before any StorageHelper usage
+  await StorageHelper.initialize('${config.appName}', isEncryptKeyAndValue: ${config.useSecretKey});
+
   /// Load environment configuration
   await EnvConfig.load(env.name);
-
-  /// Initialize secure storage
-  await StorageHelper.initialize('${config.appName}', isEncryptKeyAndValue: true);
 }
 ''';
   }
@@ -522,6 +1027,7 @@ Future<void> initApp(Environment env) async {
     return '''
 import 'package:dio_extended/diox.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:secure_compressor/secure_compressor.dart';
 import 'core/l10n/string_resources.dart';
@@ -529,8 +1035,46 @@ import 'core/config/env_config.dart';
 import 'core/l10n/generated/app_localizations.dart';
 import 'routes/app_router.dart';
 import 'theme/app_theme.dart';
+${config.useSecretKey ? "import 'core/config/secretkey.dart';" : ''}
 
 enum Environment { development, staging, production }
+
+/// App-wide state: theme mode + locale.
+class AppState {
+  const AppState({required this.themeMode, required this.locale});
+
+  final ThemeMode themeMode;
+  final Locale locale;
+
+  AppState copyWith({ThemeMode? themeMode, Locale? locale}) {
+    return AppState(
+      themeMode: themeMode ?? this.themeMode,
+      locale: locale ?? this.locale,
+    );
+  }
+}
+
+/// Owns app-wide theme + locale so any page can toggle them via
+/// context.read<AppCubit>().
+class AppCubit extends Cubit<AppState> {
+  AppCubit()
+      : super(const AppState(themeMode: ThemeMode.light, locale: Locale('en')));
+
+  void toggleTheme() {
+    emit(state.copyWith(
+      themeMode:
+          state.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark,
+    ));
+  }
+
+  void toggleLanguage() {
+    emit(state.copyWith(
+      locale: state.locale.languageCode == 'en'
+          ? const Locale('id')
+          : const Locale('en'),
+    ));
+  }
+}
 
 class App extends StatelessWidget {
   const App({super.key, required this.env});
@@ -539,25 +1083,32 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      debugShowCheckedModeBanner: false,
-      title: '${config.appDisplayName}',
-      theme: AppTheme.lightTheme(),
-      darkTheme: AppTheme.darkTheme(),
-      themeMode: ThemeMode.system,
-      routerConfig: appRouter,
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      locale: const Locale('en'),
-      supportedLocales: const [Locale('en'), Locale('id')],
-      builder: (context, child) {
-        R.init(context);
-        return child!;
-      },
+    return BlocProvider(
+      create: (_) => AppCubit(),
+      child: BlocBuilder<AppCubit, AppState>(
+        builder: (context, state) {
+          return MaterialApp.router(
+            debugShowCheckedModeBanner: false,
+            title: '${config.appDisplayName}',
+            theme: AppTheme.lightTheme(),
+            darkTheme: AppTheme.darkTheme(),
+            themeMode: state.themeMode,
+            routerConfig: appRouter,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            locale: state.locale,
+            supportedLocales: const [Locale('en'), Locale('id')],
+            builder: (context, child) {
+              R.init(context);
+              return child!;
+            },
+          );
+        },
+      ),
     );
   }
 }
@@ -575,11 +1126,11 @@ Future<void> initApp(Environment env) async {
   
   ShakeChuckerConfigs.initialize(showOnRelease: env != .production, showNotification: false);
 
+  /// Initialize secure storage first — required before any StorageHelper usage
+  await StorageHelper.initialize('${config.appName}', isEncryptKeyAndValue: ${config.useSecretKey});
+
   /// Load environment configuration
   await EnvConfig.load(env.name);
-
-  /// Initialize secure storage
-  await StorageHelper.initialize('${config.appName}', isEncryptKeyAndValue: true);
 }
 ''';
   }
@@ -649,38 +1200,37 @@ cp "\${GOOGLESERVICE_INFO_FILE}" "\${PLIST_DESTINATION}"
   static String baseConnectionGetX() {
     return '''
 import 'package:dio_extended/diox.dart';
+import 'package:get/get.dart';
 
 import '../../sessions/user_session.dart';
 import '../config/env_config.dart';
 
 class BaseConnection extends DioExtended {
-
-  BaseConnection._internal()
-    : super(baseUrl: EnvConfig.apiBaseUrl, headers: _buildAuthHeaders(), tokenExpiredCode: 402);
-
-  static final BaseConnection _instance = BaseConnection._internal();
-  factory BaseConnection() => _instance;
+  BaseConnection()
+    : super(
+        baseUrl: EnvConfig.apiBaseUrl,
+        headers: _buildAuthHeaders(),
+        tokenExpiredCode: 402,
+        /// If your token source is async (e.g. fetched from a remote call),
+        /// replace [headers] with [headersAsync] and make _buildAuthHeaders async:
+        // headersAsync: _buildAuthHeaders(),
+      );
 
   @override
   Future<dynamic> handleTokenExpired() async {
-    /// Fetch your new token here
-    /// .........
-    return _buildAuthHeaders();
+    /// TODO: call refresh endpoint, save new token to UserSessions
+    final newHeaders = _buildAuthHeaders();
+    if (Get.isRegistered<BaseConnection>()) {
+      Get.delete<BaseConnection>(force: true);
+      Get.put<BaseConnection>(BaseConnection(), permanent: true);
+    }
+    return newHeaders;
   }
 
   static Map<String, String> _buildAuthHeaders() {
-    final token = UserSessions.getToken();
-    if (token == null) return {};
-    return {'token': token};
+    final token = UserSessions.getToken() ?? '';
+    return {'token': 'Bearer \$token'};
   }
-
-  /// If fetch async headers
-  // static Future<Map<String, String>> _buildAuthHeaders() async {
-  //   String token = UserSessions.getToken() ?? '';
-  //   return {
-  //     'token': 'Bearer \${token.toString()}',
-  //   };
-  // }
 }
 ''';
   }
@@ -688,66 +1238,47 @@ class BaseConnection extends DioExtended {
   static String baseConnectionRiverpod() {
     return '''
 import 'package:dio_extended/diox.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../sessions/user_session.dart';
 import '../config/env_config.dart';
 
+part 'base_connection.g.dart';
+
+@riverpod
+BaseConnection baseConnection(Ref ref) {
+  return BaseConnection.create();
+}
+
 class BaseConnection extends DioExtended {
+  BaseConnection._internal(Map<String, String> headers)
+    : super(
+        baseUrl: EnvConfig.apiBaseUrl,
+        headers: headers,
+        tokenExpiredCode: 402,
+        /// If your token source is async (e.g. fetched from a remote call),
+        /// replace [headers] with [headersAsync] and make _buildAuthHeaders async:
+        // headersAsync: _buildAuthHeadersAsync(),
+      );
 
-  BaseConnection._internal()
-    : super(baseUrl: EnvConfig.apiBaseUrl, headers: _buildAuthHeaders(), tokenExpiredCode: 402);
+  static BaseConnection create() {
+    return BaseConnection._internal(_buildAuthHeaders());
+  }
 
-  static final BaseConnection _instance = BaseConnection._internal();
-  factory BaseConnection() => _instance;
-
+  /// Called automatically by DioExtended when the server returns tokenExpiredCode (402).
+  /// Fetch and save the new token here, then return the updated auth headers.
+  /// DioExtended will retry the original request with these new headers.
   @override
   Future<dynamic> handleTokenExpired() async {
-    /// Fetch your new token here
-    /// .........
+    /// TODO: call your refresh-token endpoint and save the result to UserSessions
     return _buildAuthHeaders();
   }
 
   static Map<String, String> _buildAuthHeaders() {
-    final token = UserSessions.getToken();
-    if (token == null) return {};
-    return {'token': token};
+    final token = UserSessions.getToken() ?? '';
+    return {'token': 'Bearer \$token'};
   }
 }
-
-  /// If fetch async headers
-  /// Using this code to provide connection provider
-  /// NOTE: You can uncomment DatasourceRefX in core/extensions/datasource_refx.dart
-  /// to use this async headers version
-  
-// import 'package:dio_extended/diox.dart';
-// import 'package:riverpod_annotation/riverpod_annotation.dart';
-
-// import '../../sessions/user_session.dart';
-// import '../config/env_config.dart';
-
-// part 'base_connection.g.dart';
-
-// @riverpod
-// Future<BaseConnection> baseConnection(Ref ref) async {
-//   return BaseConnection.create();
-// }
-
-// class BaseConnection extends DioExtended {
-//   BaseConnection._internal(Map<String, String> headers) 
-//     : super(baseUrl: EnvConfig.apiBaseUrl, headersAsync: Future.value(headers));
-
-//   static Future<BaseConnection> create() async {
-//     final headers = await _buildAuthHeaders();
-//     return BaseConnection._internal(headers);
-//   }
-
-//   static Future<Map<String, String>> _buildAuthHeaders() async {
-//     String token = UserSessions.getToken() ?? '';
-//     return {
-//       'token': 'Bearer \${token.toString()}',
-//     };
-//   }
-// }
 ''';
   }
 
@@ -759,24 +1290,33 @@ import '../../sessions/user_session.dart';
 import '../config/env_config.dart';
 
 class BaseConnection extends DioExtended {
-
   BaseConnection._internal()
-    : super(baseUrl: EnvConfig.apiBaseUrl, headers: _buildAuthHeaders(), tokenExpiredCode: 402);
+    : super(
+        baseUrl: EnvConfig.apiBaseUrl,
+        headers: _buildAuthHeaders(),
+        tokenExpiredCode: 402,
+        /// If your token source is async (e.g. fetched from a remote call),
+        /// replace [headers] with [headersAsync] and make _buildAuthHeaders async:
+        // headersAsync: _buildAuthHeadersAsync(),
+      );
 
-  static final BaseConnection _instance = BaseConnection._internal();
-  factory BaseConnection() => _instance;
+  static BaseConnection? _instance;
+  factory BaseConnection() => _instance ??= BaseConnection._internal();
+
+  /// Call this after an external token refresh to force a new instance
+  /// for the next consumer (e.g. after login, after token rotation).
+  static void reset() => _instance = null;
 
   @override
   Future<dynamic> handleTokenExpired() async {
-    /// Fetch your new token here
-    /// .........
+    /// TODO: call refresh endpoint, save new token to UserSessions
+    reset();
     return _buildAuthHeaders();
   }
 
   static Map<String, String> _buildAuthHeaders() {
-    final token = UserSessions.getToken();
-    if (token == null) return {};
-    return {'token': token};
+    final token = UserSessions.getToken() ?? '';
+    return {'token': 'Bearer \$token'};
   }
 }
 ''';
@@ -1160,7 +1700,13 @@ preferred-supported-locales:
   "password": "Password",
   "loginTitle": "Login Account",
   "loginSubTitle": "Please enter phone number and password",
-  "homeView": "Home View"
+  "homeView": "Home View",
+  "homeWelcome": "Welcome back!",
+  "homeSubtitle": "Here's what's happening today",
+  "homeExplore": "Explore",
+  "homeNotifications": "Notifications",
+  "homeProfile": "Profile",
+  "homeSettings": "Settings"
 }
 ''';
   }
@@ -1175,7 +1721,13 @@ preferred-supported-locales:
   "password": "Sandi",
   "loginTitle": "Masuk Aplikasi",
   "loginSubTitle": "Silakan masukkan No. Hp dan Sandi",
-  "homeView": "Beranda"
+  "homeView": "Beranda",
+  "homeWelcome": "Selamat datang kembali!",
+  "homeSubtitle": "Berikut ringkasan aktivitas hari ini",
+  "homeExplore": "Jelajahi",
+  "homeNotifications": "Notifikasi",
+  "homeProfile": "Profil",
+  "homeSettings": "Pengaturan"
 }
 ''';
   }

@@ -710,6 +710,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/string_resources.dart';
+import '../widgets/auth_scaffold.dart';
 import '../../../../routes/routes.dart';
 import '../bloc/login_bloc.dart';
 import '../bloc/login_event.dart';
@@ -745,9 +747,7 @@ class _LoginViewState extends State<LoginView> {
               SnackBar(content: Text('Result: \${state.result}')),
             );
           }
-          if (state.isSuccess) {
-            context.go(Routes.home);
-          }
+          if (state.isSuccess) context.go(Routes.home);
           if (state.errorMessage != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.errorMessage!)),
@@ -755,73 +755,56 @@ class _LoginViewState extends State<LoginView> {
           }
         },
         builder: (context, state) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Login')),
-            body: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextFormField(
-                      controller: _emailOrPhoneController,
-                      decoration: const InputDecoration(labelText: 'Email or Phone'),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Required';
-                        }
-                        return null;
-                      },
+          return AuthScaffold(
+            title: R.string.homeWelcome,
+            subtitle: R.string.loginTitle,
+            hint: R.string.loginSubTitle,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _emailOrPhoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: AuthDecorations.field(
+                      label: R.string.phone,
+                      icon: Icons.phone_outlined,
                     ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: state.isPasswordObscured,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        suffixIcon: IconButton(
-                          onPressed: () => context.read<LoginBloc>().add(const LoginTogglePassword()),
-                          icon: Icon(
-                            state.isPasswordObscured
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                          ),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: state.isPasswordObscured,
+                    decoration: AuthDecorations.field(
+                      label: R.string.password,
+                      icon: Icons.lock_outline_rounded,
+                      suffixIcon: IconButton(
+                        onPressed: () => context.read<LoginBloc>().add(const LoginTogglePassword()),
+                        icon: Icon(
+                          state.isPasswordObscured
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                         ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Required';
-                        }
-                        return null;
-                      },
                     ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: state.isLoading
-                            ? null
-                            : () {
-                                if (!_formKey.currentState!.validate()) return;
-                                context.read<LoginBloc>().add(
-                                      LoginSubmitted(
-                                        emailOrPhone: _emailOrPhoneController.text,
-                                        password: _passwordController.text,
-                                      ),
-                                    );
-                              },
-                        child: state.isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('Login'),
-                      ),
-                    ),
-                  ],
-                ),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 28),
+                  AuthPrimaryButton(
+                    label: R.string.login,
+                    isLoading: state.isLoading,
+                    onPressed: () {
+                      if (!_formKey.currentState!.validate()) return;
+                      context.read<LoginBloc>().add(
+                            LoginSubmitted(
+                              emailOrPhone: _emailOrPhoneController.text,
+                              password: _passwordController.text,
+                            ),
+                          );
+                    },
+                  ),
+                ],
               ),
             ),
           );
@@ -839,6 +822,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/string_resources.dart';
+import '../widgets/auth_scaffold.dart';
 import '../../../../routes/routes.dart';
 import '../../data/datasources/login_remote_datasource.dart';
 import '../bloc/login_bloc.dart';
@@ -870,9 +855,7 @@ class _LoginViewState extends State<LoginView> {
       create: (_) => LoginBloc(remoteDatasource: LoginRemoteDatasource()),
       child: BlocConsumer<LoginBloc, LoginState>(
         listener: (context, state) {
-          if (state.isSuccess) {
-            context.go(Routes.home);
-          }
+          if (state.isSuccess) context.go(Routes.home);
           if (state.errorMessage != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.errorMessage!)),
@@ -880,78 +863,83 @@ class _LoginViewState extends State<LoginView> {
           }
         },
         builder: (context, state) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Login')),
-            body: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextFormField(
-                      controller: _emailOrPhoneController,
-                      decoration: const InputDecoration(labelText: 'Email or Phone'),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Required';
-                        }
-                        return null;
-                      },
+          return AuthScaffold(
+            title: R.string.homeWelcome,
+            subtitle: R.string.loginTitle,
+            hint: R.string.loginSubTitle,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _emailOrPhoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: AuthDecorations.field(
+                      label: R.string.phone,
+                      icon: Icons.phone_outlined,
                     ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: state.isPasswordObscured,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        suffixIcon: IconButton(
-                          onPressed: () => context.read<LoginBloc>().add(const LoginTogglePassword()),
-                          icon: Icon(
-                            state.isPasswordObscured
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                          ),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: state.isPasswordObscured,
+                    decoration: AuthDecorations.field(
+                      label: R.string.password,
+                      icon: Icons.lock_outline_rounded,
+                      suffixIcon: IconButton(
+                        onPressed: () => context.read<LoginBloc>().add(const LoginTogglePassword()),
+                        icon: Icon(
+                          state.isPasswordObscured
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                         ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Required';
-                        }
-                        return null;
-                      },
                     ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: state.isLoading
-                            ? null
-                            : () {
-                                if (!_formKey.currentState!.validate()) return;
-                                context.read<LoginBloc>().add(
-                                      LoginSubmitted(
-                                        emailOrPhone: _emailOrPhoneController.text,
-                                        password: _passwordController.text,
-                                      ),
-                                    );
-                              },
-                        child: state.isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('Login'),
-                      ),
-                    ),
-                  ],
-                ),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 28),
+                  AuthPrimaryButton(
+                    label: R.string.login,
+                    isLoading: state.isLoading,
+                    onPressed: () {
+                      if (!_formKey.currentState!.validate()) return;
+                      context.read<LoginBloc>().add(
+                            LoginSubmitted(
+                              emailOrPhone: _emailOrPhoneController.text,
+                              password: _passwordController.text,
+                            ),
+                          );
+                    },
+                  ),
+                ],
               ),
             ),
           );
         },
       ),
+    );
+  }
+}
+''';
+  }
+
+  static String homeView() {
+    return '''
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../app.dart';
+import '../widgets/home_shell.dart';
+
+class HomeView extends StatelessWidget {
+  const HomeView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return HomeShell(
+      onToggleTheme: () => context.read<AppCubit>().toggleTheme(),
+      onToggleLanguage: () => context.read<AppCubit>().toggleLanguage(),
     );
   }
 }

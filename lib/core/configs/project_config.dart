@@ -23,6 +23,7 @@ class ProjectConfig {
     required this.iosBundleId,
     required this.stateManagement,
     required this.useFirebase,
+    required this.useSecretKey,
     this.blocArchitecture,
     this.riverpodArchitecture,
   });
@@ -33,6 +34,12 @@ class ProjectConfig {
   final String iosBundleId;
   final StateManagement stateManagement;
   final bool useFirebase;
+
+  /// Whether to use SecureCompressor + secret_key_scrypt_generator for encrypted
+  /// env files and encrypted local storage. When false, env files are read as plain
+  /// text and StorageHelper stores data without key-value encryption.
+  final bool useSecretKey;
+
   final StateManagementArchitecture? blocArchitecture;
   final StateManagementArchitecture? riverpodArchitecture;
 
