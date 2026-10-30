@@ -119,7 +119,7 @@ class ProjectGenerator {
 
         if (!RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(x)) {
           print(
-            '  ⚠️  Must be lowercase snake_case. Example: aplikasi_makanan',
+            '  ⚠️  Must be lowercase snake_case. Example: food_app',
           );
           return false;
         }

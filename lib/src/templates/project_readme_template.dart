@@ -6,11 +6,11 @@ class ProjectReadmeTemplate {
     return '''
 # ${config.displayName}
 
-Proyek Flutter hasil **XProject Generator**.
+Flutter project scaffolded with **XProject Generator**.
 
-## Mulai di sini
+## Start here
 
-Selesaikan konfigurasi di **[GUIDE.md](GUIDE.md)** (env, flavor, run/build, CI/CD, troubleshooting).
+Finish setup in **[GUIDE.md](GUIDE.md)** (env, flavors, run/build, CI/CD, troubleshooting).
 
 ```bash
 cd ${config.appName}
@@ -18,9 +18,9 @@ flutter pub get
 flutter run --flavor development -t lib/main_development.dart
 ```
 
-Atau gunakan konfigurasi **Run and Debug** di `.vscode/launch.json` (pilih `[DEV]`).
+Or use **Run and Debug** in `.vscode/launch.json` (choose `[DEV]`).
 
-Dokumentasi generator: [xproject_generator](https://pub.dev/packages/xproject_generator)
+Generator docs: [xproject_generator](https://pub.dev/packages/xproject_generator)
 '''.trim();
   }
 }

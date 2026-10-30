@@ -24,7 +24,7 @@ Set<PlatformTarget> promptPlatformTargets() {
     ).interact();
 
     if (indices.isEmpty) {
-      print('  ⚠️  Pilih minimal satu platform.');
+      print('  ⚠️  Select at least one platform.');
       continue;
     }
 
@@ -64,7 +64,10 @@ CiCdScope promptCiCdScope() {
 CiCdScope promptCiCdScopeChoice() {
   final scopeIndex = Select(
     prompt: 'CI/CD scope',
-    options: ['CI saja (analyze & test)', 'CI + deployment (build & distribute)'],
+    options: [
+      'CI only (analyze & test)',
+      'CI + deployment (build & distribute)',
+    ],
   ).interact();
 
   return scopeIndex == 0 ? CiCdScope.ciOnly : CiCdScope.ciAndDeploy;
@@ -104,7 +107,7 @@ Set<PlatformTarget> promptAdditionalPlatforms(Set<PlatformTarget> missing) {
     ).interact();
 
     if (indices.isEmpty) {
-      print('  ⚠️  Pilih minimal satu platform.');
+      print('  ⚠️  Select at least one platform.');
       continue;
     }
 
@@ -124,8 +127,8 @@ GitLabRunnerMode promptGitLabRunnerMode() {
   final index = Select(
     prompt: 'GitLab runner',
     options: [
-      'GitLab.com shared runner (image Flutter)',
-      'Self-hosted shell (Mac Mini / PC lokal — Flutter di PATH)',
+      'GitLab.com shared runner (Flutter image)',
+      'Self-hosted shell (Mac Mini / local PC — Flutter on PATH)',
       'Self-hosted Docker (ci/Dockerfile + executor docker)',
     ],
   ).interact();
@@ -143,7 +146,7 @@ const _deployOptions = [
   'Google Play (internal testing)',
   'TestFlight',
   'Firebase App Distribution',
-  'Hanya artifact (tanpa upload)',
+  'Artifacts only (no upload)',
 ];
 
 Set<DeployTarget> promptDeployTargets() {

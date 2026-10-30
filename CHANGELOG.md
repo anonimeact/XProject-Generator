@@ -1,3 +1,9 @@
+## 1.1.1
+
+### CLI (create & setup)
+- CI/CD wizard prompts are **English only** (scope, GitLab runner modes, deployment channels, platform validation messages).
+- Generated project **`README.md`** is English only (aligned with English-only `GUIDE.md`).
+
 ## 1.1.0
 
 ### Generated `BaseConnection` (token & refresh)

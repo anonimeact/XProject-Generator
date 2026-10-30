@@ -344,7 +344,7 @@ Future<void> main() async {
 | [`lib/src/post_create_codegen.dart`](lib/src/post_create_codegen.dart) | `flutter pub get` + `build_runner` after create |
 | [`lib/src/cli_step_progress.dart`](lib/src/cli_step_progress.dart) | Terminal progress during create |
 | [`lib/src/templates`](lib/src/templates) | Template code for GetX, Riverpod, and Bloc |
-| [`CHANGELOG.md`](CHANGELOG.md) | Version history (latest **1.1.0**) |
+| [`CHANGELOG.md`](CHANGELOG.md) | Version history (latest **1.1.1**) |
 | [`pubspec.yaml`](pubspec.yaml) | Package metadata |
 
 ---
