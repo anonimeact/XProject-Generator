@@ -1,6 +1,6 @@
 name: xproject_generator
 description: CLI and library to scaffold production-ready Flutter apps and feature modules using opinionated GetX, Riverpod, and Bloc templates.
-version: 1.0.6
+version: 1.1.0
 homepage: https://github.com/anonimeact/XProject-Generator
 repository: https://github.com/anonimeact/XProject-Generator
 
@@ -14,9 +14,9 @@ executables:
 dependencies:
   args: ^2.7.0
   interact: ^2.2.0
-  mason_logger: ^0.3.3
+  mason_logger: ^0.3.5
   path: ^1.9.1
 
 dev_dependencies:
-  lints: ^6.0.0
-  test: ^1.25.6
+  lints: ^6.1.0
+  test: ^1.33.0

@@ -157,6 +157,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../routes/app_routes.dart';
+import '../../../core/services/base_connection.dart';
+import '../../../sessions/user_session.dart';
+import '../models/user_model.dart';
 import '../providers/login_provider.dart';
 
 class LoginController extends GetxController {
@@ -189,11 +192,25 @@ class LoginController extends GetxController {
     try {
       isLoading.value = true;
 
-      // await loginProvider.login({'emailOrPhone': emailOrPhoneController.text, 'password': passwordController.text});
+${CommonTemplates.demoLoginBypassBlock(
+  phoneExpression: 'emailOrPhoneController.text.trim()',
+  connectionExpression: 'BaseConnection.to',
+  realApiSnippet: '''
+    // final result = await loginProvider.login({
+    //   'emailOrPhone': emailOrPhoneController.text,
+    //   'password': passwordController.text,
+    // });
+    // if (!result.isSuccess) {
+    //   throw StateError(result.message ?? 'Login failed');
+    // }
+    // Save tokens from result.data, then navigate to home.
+''',
+)}
 
-      // Navigate to home
+      if (!isClosed) isLoading.value = false;
       Get.offAllNamed(Routes.home);
     } catch (e) {
+      if (!isClosed) isLoading.value = false;
       Get.snackbar(
         'Error',
         e.toString(),
@@ -201,8 +218,6 @@ class LoginController extends GetxController {
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
-    } finally {
-      isLoading.value = false;
     }
   }
 }
@@ -308,14 +323,17 @@ class SplashBinding extends Bindings {
   /// Returns the Dart code for the SplashController class.
   static String splashController(ProjectConfig config) {
     return '''
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 ${config.useFirebase ? '''
-import 'package:flutter/material.dart';
 import '../../../core/services/firebase/firebase_service.dart';
 ''' : ''}
 import '../../../routes/app_routes.dart';
+import '../../../sessions/user_session.dart';
 
 class SplashController extends GetxController {
+  var _didNavigate = false;
+
   @override
   void onReady() {
     super.onReady();
@@ -323,23 +341,31 @@ class SplashController extends GetxController {
   }
 
   Future<void> _start() async {
-    ${config.useFirebase ? '''final stopwatch = Stopwatch()..start();
+    if (_didNavigate) return;
     try {
-      await FirebaseService.init(
-        onToken: (token) {
-          debugPrint('FCM TOKEN: \$token');
-        },
-      );
+      ${config.useFirebase ? '''final stopwatch = Stopwatch()..start();
+      try {
+        await FirebaseService.init(
+          onToken: (token) {
+            debugPrint('FCM TOKEN: \$token');
+          },
+        );
+      } catch (e) {
+        debugPrint('Error during Firebase initialization: \$e');
+      }
+      final elapsed = stopwatch.elapsedMilliseconds;
+      if (elapsed < 3000) {
+        await Future.delayed(Duration(milliseconds: 3000 - elapsed));
+      }
+      ''' : 'await Future.delayed(const Duration(seconds: 3));'}
     } catch (e) {
-      debugPrint('Error during Firebase initialization: \$e');
+      debugPrint('Splash failed, continuing to the next screen: \$e');
     }
-    final elapsed = stopwatch.elapsedMilliseconds;
-    if (elapsed < 3000) {
-      await Future.delayed(Duration(milliseconds: 3000 - elapsed));
-    }
-    ''' : 'await Future.delayed(Duration(seconds: 3));'}
-
-    Get.offAllNamed(Routes.login);
+    if (isClosed || _didNavigate) return;
+    _didNavigate = true;
+    Get.offAllNamed(
+      UserSessions.hasActiveSession() ? Routes.home : Routes.login,
+    );
   }
 }
 ''';
@@ -383,9 +409,13 @@ class SplashView extends GetView<SplashController> {
   /// Returns the Dart code for the HomeController class.
   static String homeController() {
     return '''
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../app.dart';
+import '../../../routes/app_routes.dart';
+import '../../../core/services/base_connection.dart';
+import '../../../sessions/user_session.dart';
 import '../providers/home_provider.dart';
 
 class HomeController extends GetxController {
@@ -395,6 +425,18 @@ class HomeController extends GetxController {
 
   void toggleTheme() => AppController.to.toggleTheme();
   void toggleLanguage() => AppController.to.toggleLanguage();
+
+  void logout() {
+    try {
+      BaseConnection.to.clearSession();
+    } catch (e) {
+      debugPrint('Logout cleanup failed: \$e');
+      try {
+        UserSessions.clearSession();
+      } catch (_) {}
+    }
+    Get.offAllNamed(Routes.login);
+  }
 }
 ''';
   }
@@ -434,6 +476,7 @@ class HomeView extends GetView<HomeController> {
     return HomeShell(
       onToggleTheme: controller.toggleTheme,
       onToggleLanguage: controller.toggleLanguage,
+      onLogout: controller.logout,
     );
   }
 }

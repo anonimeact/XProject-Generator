@@ -51,6 +51,7 @@ abstract class Routes {
   static String appRouter() {
     return '''
 import 'package:dio_extended/diox.dart';
+import 'package:dio_extended/diox_chucker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:xwidgets_pack/xwidgets.dart';
 import '../features/home/presentation/views/home_view.dart';

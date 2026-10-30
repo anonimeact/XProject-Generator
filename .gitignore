@@ -5,3 +5,13 @@
 # Avoid committing pubspec.lock for library packages; see
 # https://dart.dev/guides/libraries/private-files#pubspeclock.
 pubspec.lock
+
+# Build & test outputs (e.g. `dart test`, `dart run`)
+build/
+coverage/
+
+# Local Flutter apps from `xproject create` used for manual QA — not part of this package
+riverpod_test/
+
+# OS
+.DS_Store

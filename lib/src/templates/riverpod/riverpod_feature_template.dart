@@ -341,24 +341,44 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../routes/routes.dart';
+import '../../../../sessions/user_session.dart';
 import '../providers/splash_provider.dart';
 
-class SplashView extends ConsumerWidget {
+class SplashView extends ConsumerStatefulWidget {
   const SplashView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(splashProcessProvider);
-    ref.listen(splashProcessProvider, (_, next) {
-      next.whenOrNull(
-        data: (_) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!context.mounted) return;
-            context.go(Routes.login);
-          });
-        },
-      );
+  ConsumerState<SplashView> createState() => _SplashViewState();
+}
+
+class _SplashViewState extends ConsumerState<SplashView> {
+  var _didRoute = false;
+
+  void _routeAfterSplash() {
+    if (_didRoute || !mounted) return;
+    _didRoute = true;
+    context.go(
+      UserSessions.hasActiveSession() ? Routes.home : Routes.login,
+    );
+  }
+
+  void _scheduleRoute() {
+    if (_didRoute) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _routeAfterSplash();
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final splash = ref.watch(splashProcessProvider);
+    ref.listen(splashProcessProvider, (previous, next) {
+      if (next.isLoading) return;
+      _scheduleRoute();
+    });
+    if (!splash.isLoading) {
+      _scheduleRoute();
+    }
 
     return const Scaffold(
       body: Center(
@@ -474,6 +494,8 @@ import 'package:dio_extended/models/api_result.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../../core/extensions/datasource_refx.dart';
+import '../../../../core/services/base_connection.dart';
+import '../../../../sessions/user_session.dart';
 import '../../data/datasources/login_remote_datasource.dart';
 import '../../data/repositories/login_repository_impl.dart';
 import '../../data/models/user_model.dart';
@@ -509,13 +531,31 @@ class LoginController extends _\$LoginController {
   }) async {
     state = const AsyncLoading();
 
-    final usecase = ref.read(loginUserProvider);
-    final result = await AsyncValue.guard(
-      () => usecase(
-        emailOrPhone: emailOrPhone,
-        password: password,
+    final result = await AsyncValue.guard(() async {
+${CommonTemplates.demoLoginBypassBlock(
+  phoneExpression: 'emailOrPhone',
+  connectionExpression: 'ref.read(baseConnectionProvider)',
+  trailingLines: '''
+    return ApiResult.success(
+      UserModel(
+        id: 'local',
+        name: emailOrPhone.trim(),
+        email: '',
+        phone: emailOrPhone.trim(),
       ),
-    );
+    );''',
+  realApiSnippet: '''
+    // final usecase = ref.read(loginUserProvider);
+    // final value = await usecase(
+    //   emailOrPhone: emailOrPhone,
+    //   password: password,
+    // );
+    // if (!value.isSuccess) return value;
+    // UserSessions.openSession(...); ref.read(baseConnectionProvider).saveSession(...);
+    // return value;
+''',
+)}
+    });
 
     if (!ref.mounted) return;
     state = result;
@@ -591,6 +631,7 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
 
   static String loginRemoteDatasource() {
     return '''
+${CommonTemplates.loginRemoteDatasourceFileHeader()}
 import 'package:dio_extended/models/api_result.dart';
 
 import '../../../../core/services/base_connection.dart';
@@ -632,6 +673,10 @@ class LoginRemoteDatasource {
     return '''
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../../core/services/base_connection.dart';
+import '../../../../sessions/user_session.dart';
+import '../../data/models/user_model.dart';
+
 // Pastikan nama file sesuai, misal: login_provider.dart
 part 'login_provider.g.dart'; 
 
@@ -650,8 +695,22 @@ class LoginController extends _\$LoginController {
     state = const AsyncLoading();
 
     state = await AsyncValue.guard(() async {
-      // TODO: integrate API call here (API request, save token, etc)
-      await Future.delayed(const Duration(seconds: 1));
+      final phone = emailOrPhone.trim();
+${CommonTemplates.demoLoginBypassBlock(
+  phoneExpression: 'phone',
+  connectionExpression: 'ref.read(baseConnectionProvider)',
+  realApiSnippet: '''
+    // state = const AsyncLoading();
+    // final result = await ref.read(loginDatasourceProvider).login(
+    //   emailOrPhone: emailOrPhone,
+    //   password: password,
+    // );
+    // if (!result.isSuccess) {
+    //   throw StateError(result.message ?? 'Login failed');
+    // }
+    // UserSessions.openSession(...); ref.read(baseConnectionProvider).saveSession(...);
+''',
+)}
     });
   }
 }
@@ -680,6 +739,8 @@ class LoginView extends ConsumerStatefulWidget {
 }
 
 class _LoginViewState extends ConsumerState<LoginView> {
+  var _handledSuccess = false;
+
   @override
   void initState() {
     super.initState();
@@ -689,12 +750,15 @@ class _LoginViewState extends ConsumerState<LoginView> {
       ref.listenManual(loginControllerProvider, (_, next) {
         next.whenOrNull(
           data: (_) {
-            if (!mounted) return;
+            if (!mounted || _handledSuccess) return;
+            // DEMO: session is saved in login_provider.dart without calling the API.
+            _handledSuccess = true;
             context.go(Routes.home);
           },
-          error: (err, _) {
-            XSnackbar.error(err.toString());
-          },
+          // REAL API: uncomment to show errors from [AsyncValue.error] (network, parse, etc.).
+          // error: (err, _) {
+          //   XSnackbar.error(err.toString());
+          // },
         );
       });
     });
@@ -779,6 +843,8 @@ class LoginView extends ConsumerStatefulWidget {
 }
 
 class _LoginViewState extends ConsumerState<LoginView> {
+  var _handledSuccess = false;
+
   @override
   void initState() {
     super.initState();
@@ -788,13 +854,23 @@ class _LoginViewState extends ConsumerState<LoginView> {
       ref.listenManual(loginControllerProvider, (_, next) {
         next.whenOrNull(
           data: (result) {
-            if (!mounted) return;
-            XSnackbar.success('Result: \$result');
+            if (!mounted || _handledSuccess) return;
+            // DEMO: navigates after local session is saved (see login_provider.dart).
+            // REAL API: uncomment to block navigation when [ApiResult.isSuccess] is false.
+            // if (!result.isSuccess) {
+            //   final message = result.message;
+            //   if (message != null && message.isNotEmpty) {
+            //     XSnackbar.error(message);
+            //   }
+            //   return;
+            // }
+            _handledSuccess = true;
             context.go(Routes.home);
           },
-          error: (err, _) {
-            XSnackbar.error(err.toString());
-          },
+          // REAL API: uncomment to show errors from [AsyncValue.error].
+          // error: (err, _) {
+          //   XSnackbar.error(err.toString());
+          // },
         );
       });
     });
@@ -862,8 +938,12 @@ class _LoginViewState extends ConsumerState<LoginView> {
     return '''
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/locale_provider.dart';
+import '../../../../core/services/base_connection.dart';
+import '../../../../routes/routes.dart';
+import '../../../../sessions/user_session.dart';
 import '../widgets/home_shell.dart';
 import '../../../../theme/theme_provider.dart';
 
@@ -880,6 +960,9 @@ class HomeView extends ConsumerWidget {
         ref.read(localeProvider.notifier).state = locale.languageCode == 'en'
             ? const Locale('id')
             : const Locale('en');
+      },
+      onLogout: () {
+${CommonTemplates.goRouterLogoutBody(connectionExpression: 'ref.read(baseConnectionProvider)')}
       },
     );
   }

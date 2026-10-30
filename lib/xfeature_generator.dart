@@ -17,6 +17,7 @@ import 'package:path/path.dart' as path;
 
 import 'core/configs/project_config.dart';
 import 'src/file_generator.dart';
+import 'src/post_create_codegen.dart';
 
 /// Main class for generating new feature templates in an existing Flutter project.
 class FeatureGenerator {
@@ -64,13 +65,32 @@ class FeatureGenerator {
       r'^\s*flutter_bloc:\s*',
       multiLine: true,
     ).hasMatch(content);
+    final hasProviderPackage = RegExp(
+      r'^\s*provider:\s*',
+      multiLine: true,
+    ).hasMatch(content);
 
-    if (hasGet && !hasRiverpod && !hasBloc) return StateManagement.getx;
-    if (hasRiverpod && !hasGet && !hasBloc) return StateManagement.riverpod;
-    if (hasBloc && !hasGet && !hasRiverpod) return StateManagement.bloc;
+    if (hasGet &&
+        !hasRiverpod &&
+        !hasBloc &&
+        !hasProviderPackage) {
+      return StateManagement.getx;
+    }
+    if (hasRiverpod &&
+        !hasGet &&
+        !hasBloc &&
+        !hasProviderPackage) {
+      return StateManagement.riverpod;
+    }
+    if (hasBloc && !hasGet && !hasRiverpod && !hasProviderPackage) {
+      return StateManagement.bloc;
+    }
+    if (hasProviderPackage && !hasGet && !hasRiverpod && !hasBloc) {
+      return StateManagement.provider;
+    }
 
     // Kalau keduanya ada (possible), pakai rule tambahan
-    if (hasGet || hasRiverpod || hasBloc) {
+    if (hasGet || hasRiverpod || hasBloc || hasProviderPackage) {
       // Prefer routing detection
       final hasGetMaterialApp = await _hasTextInLib(
         root.path,
@@ -78,16 +98,22 @@ class FeatureGenerator {
       );
       if (hasGetMaterialApp) return StateManagement.getx;
 
+      final hasProviderScope = await _hasTextInLib(root.path, 'ProviderScope');
+      if (hasProviderScope) return StateManagement.riverpod;
+
       final hasBlocProvider = await _hasTextInLib(root.path, 'BlocProvider');
       if (hasBlocProvider) return StateManagement.bloc;
 
-      final hasGoRouter = await _hasTextInLib(root.path, 'GoRouter');
-      if (hasGoRouter) return StateManagement.riverpod;
+      final hasChangeNotifierProvider = await _hasTextInLib(
+        root.path,
+        'ChangeNotifierProvider',
+      );
+      if (hasChangeNotifierProvider) return StateManagement.provider;
     }
 
     throw Exception(
       'Cannot detect state management. '
-      'No get/flutter_riverpod/flutter_bloc dependency found.',
+      'No get/flutter_riverpod/flutter_bloc/provider dependency found.',
     );
   }
 
@@ -133,7 +159,10 @@ class FeatureGenerator {
     required Directory root,
     required StateManagement stateManagement,
   }) async {
-    if (stateManagement == StateManagement.getx) return null;
+    if (stateManagement == StateManagement.getx ||
+        stateManagement == StateManagement.provider) {
+      return null;
+    }
 
     final featuresDir = Directory(path.join(root.path, 'lib', 'features'));
     if (!featuresDir.existsSync()) return StateManagementArchitecture.simple;
@@ -171,20 +200,14 @@ class FeatureGenerator {
   static Future<void> runBuildRunner({required Directory projectRoot}) async {
     stdout.writeln('\n⚙ Running build_runner...');
 
-    final result = await Process.run(
-      'dart',
-      ['run', 'build_runner', 'build', '--delete-conflicting-outputs'],
-      workingDirectory: projectRoot.path,
-      runInShell: true,
-    );
-
-    if (result.exitCode != 0) {
+    try {
+      await PostCreateCodegen.runBuildRunner(projectRoot.path);
+    } on Exception catch (error) {
       stderr.writeln('❌ build_runner failed');
-      stderr.writeln(result.stderr);
+      stderr.writeln(error);
       return;
     }
 
     stdout.writeln('✅ build_runner completed');
-    stdout.writeln(result.stdout);
   }
 }

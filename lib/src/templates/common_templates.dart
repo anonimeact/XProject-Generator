@@ -1,3 +1,4 @@
+import '../../core/configs/app_icon_config.dart';
 import '../../core/configs/project_config.dart';
 
 /// XProject Generator - Common Templates
@@ -19,6 +20,19 @@ class CommonTemplates {
           weight: 600
         - asset: assets/fonts/Inter-Bold.otf
           weight: 700''';
+  }
+
+  /// `flutter_launcher_icons` block appended to generated [pubspec.yaml].
+  static String flutterLauncherIconsBlock() {
+    return '''
+
+# Launcher icon — replace [image_path] with your PNG (1024×1024 recommended), then run:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: ${AppIconConfig.projectAssetPath}
+''';
   }
 
   /// Color list
@@ -493,20 +507,24 @@ import 'package:flutter/material.dart';
 
 import '${libPrefix}theme/app_color.dart';
 import '${libPrefix}core/l10n/string_resources.dart';
+import '${libPrefix}sessions/user_session.dart';
 
 class HomeShell extends StatelessWidget {
   const HomeShell({
     super.key,
     required this.onToggleTheme,
     required this.onToggleLanguage,
+    required this.onLogout,
   });
 
   final VoidCallback onToggleTheme;
   final VoidCallback onToggleLanguage;
+  final VoidCallback onLogout;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final savedPhone = UserSessions.getPhone();
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
@@ -554,6 +572,11 @@ class HomeShell extends StatelessWidget {
                           onPressed: onToggleLanguage,
                           icon: const Icon(Icons.language_outlined, color: Colors.white),
                         ),
+                        IconButton(
+                          onPressed: onLogout,
+                          tooltip: R.string.homeExit,
+                          icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -567,7 +590,9 @@ class HomeShell extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      R.string.homeSubtitle,
+                      savedPhone != null && savedPhone.isNotEmpty
+                          ? savedPhone
+                          : R.string.homeSubtitle,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.75),
                         fontSize: 13,
@@ -847,6 +872,7 @@ class Cryptic {
   static String appWidgetGetX(ProjectConfig config) {
     return '''
 import 'package:dio_extended/diox.dart';
+import 'package:dio_extended/diox_chucker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
@@ -953,6 +979,7 @@ Future<void> initApp(Environment env) async {
   static String appWidgetRiverpod(ProjectConfig config) {
     return '''
 import 'package:dio_extended/diox.dart';
+import 'package:dio_extended/diox_chucker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1026,6 +1053,7 @@ Future<void> initApp(Environment env) async {
   static String appWidgetBloc(ProjectConfig config) {
     return '''
 import 'package:dio_extended/diox.dart';
+import 'package:dio_extended/diox_chucker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -1135,6 +1163,111 @@ Future<void> initApp(Environment env) async {
 ''';
   }
 
+  /// Returns the Dart code for the main App widget for Provider projects.
+  static String appWidgetProvider(ProjectConfig config) {
+    return '''
+import 'package:dio_extended/diox.dart';
+import 'package:dio_extended/diox_chucker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
+import 'package:secure_compressor/secure_compressor.dart';
+import 'core/l10n/string_resources.dart';
+import 'core/config/env_config.dart';
+import 'core/l10n/generated/app_localizations.dart';
+import 'core/services/base_connection.dart';
+import 'routes/app_router.dart';
+import 'theme/app_theme.dart';
+${config.useSecretKey ? "import 'core/config/secretkey.dart';" : ''}
+
+enum Environment { development, staging, production }
+
+/// App-wide theme mode + locale for Provider-based projects.
+class AppNotifier extends ChangeNotifier {
+  ThemeMode _themeMode = ThemeMode.light;
+  Locale _locale = const Locale('en');
+
+  ThemeMode get themeMode => _themeMode;
+  Locale get locale => _locale;
+
+  void toggleTheme() {
+    _themeMode =
+        _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    notifyListeners();
+  }
+
+  void toggleLanguage() {
+    _locale = _locale.languageCode == 'en'
+        ? const Locale('id')
+        : const Locale('en');
+    notifyListeners();
+  }
+}
+
+class App extends StatelessWidget {
+  const App({super.key, required this.env});
+
+  final Environment env;
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        /// One connection for the whole app, so the auth headers / token
+        /// refresh state are shared. Read it with context.read<BaseConnection>().
+        Provider<BaseConnection>(create: (_) => BaseConnection()),
+        ChangeNotifierProvider<AppNotifier>(create: (_) => AppNotifier()),
+      ],
+      child: Consumer<AppNotifier>(
+        builder: (context, appNotifier, _) {
+          return MaterialApp.router(
+            debugShowCheckedModeBanner: false,
+            title: '${config.appDisplayName}',
+            theme: AppTheme.lightTheme(),
+            darkTheme: AppTheme.darkTheme(),
+            themeMode: appNotifier.themeMode,
+            routerConfig: appRouter,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            locale: appNotifier.locale,
+            supportedLocales: const [Locale('en'), Locale('id')],
+            builder: (context, child) {
+              R.init(context);
+              return child!;
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Call this method during app initialization in each main_*.dart file
+/// to setup base services like StorageHelper, etc.
+/// For other initializations, please do that inside
+/// splash screen or relevant places
+/// to avoid blank screen on app start in iOS
+Future<void> initApp(Environment env) async {
+  /// Initialized main base services here
+  /// For other initializations, please do that inside
+  /// splash screen or relevant places
+  /// to avoid blank screen on app start in iOS
+  
+  ShakeChuckerConfigs.initialize(showOnRelease: env != .production, showNotification: false);
+
+  /// Initialize secure storage first — required before any StorageHelper usage
+  await StorageHelper.initialize('${config.appName}', isEncryptKeyAndValue: ${config.useSecretKey});
+
+  /// Load environment configuration
+  await EnvConfig.load(env.name);
+}
+''';
+  }
+
   /// Returns the Dart code for the main entry file (main_*.dart) for a given [environment].
   static String mainFile(ProjectConfig config, String environment) {
     final isRiverpod = config.stateManagement == StateManagement.riverpod;
@@ -1197,15 +1330,19 @@ cp "\${GOOGLESERVICE_INFO_FILE}" "\${PLIST_DESTINATION}"
   }
 
   /// Returns the Dart code for the BaseConnection class, which extends DioExtended for API calls.
+  ///
+  /// GetX: one permanent instance registered in `initApp` (`Get.put(..., permanent: true)`),
+  /// reached with `Get.find<BaseConnection>()` / `BaseConnection.to`.
   static String baseConnectionGetX() {
-    return '''
-import 'package:dio_extended/diox.dart';
-import 'package:get/get.dart';
-
-import '../../sessions/user_session.dart';
-import '../config/env_config.dart';
-
-class BaseConnection extends DioExtended {
+    return _baseConnectionSource(
+      packageImports: [
+        "import 'package:flutter/material.dart';",
+        "import 'package:get/get.dart';",
+        "import '../../routes/app_routes.dart';",
+      ],
+      redirectToLogin: _redirectToLoginMethod('''
+Get.offAllNamed(Routes.login);'''),
+      construction: '''
   BaseConnection()
     : super(
         baseUrl: EnvConfig.apiBaseUrl,
@@ -1213,83 +1350,62 @@ class BaseConnection extends DioExtended {
         tokenExpiredCode: 402,
         /// If your token source is async (e.g. fetched from a remote call),
         /// replace [headers] with [headersAsync] and make _buildAuthHeaders async:
-        // headersAsync: _buildAuthHeaders(),
+        // headersAsync: _buildAuthHeadersAsync(),
       );
 
-  @override
-  Future<dynamic> handleTokenExpired() async {
-    /// TODO: call refresh endpoint, save new token to UserSessions
-    final newHeaders = _buildAuthHeaders();
-    if (Get.isRegistered<BaseConnection>()) {
-      Get.delete<BaseConnection>(force: true);
-      Get.put<BaseConnection>(BaseConnection(), permanent: true);
-    }
-    return newHeaders;
+  /// The single app-wide instance registered in `initApp`.
+  static BaseConnection get to => Get.find<BaseConnection>();
+''',
+    );
   }
 
-  static Map<String, String> _buildAuthHeaders() {
-    final token = UserSessions.getToken() ?? '';
-    return {'token': 'Bearer \$token'};
-  }
-}
-''';
-  }
-
+  /// Riverpod: one `keepAlive` provider, so the same connection (and its auth
+  /// headers) lives for the whole app. Read it with `ref.read(baseConnectionProvider)`.
   static String baseConnectionRiverpod() {
-    return '''
-import 'package:dio_extended/diox.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-
-import '../../sessions/user_session.dart';
-import '../config/env_config.dart';
-
+    return _baseConnectionSource(
+      packageImports: [
+        "import 'package:flutter/material.dart';",
+        "import 'package:go_router/go_router.dart';",
+        "import 'package:riverpod_annotation/riverpod_annotation.dart';",
+        "import 'package:xwidgets_pack/xwidgets.dart';",
+        "import '../../routes/routes.dart';",
+      ],
+      redirectToLogin: _redirectToLoginMethod(_goRouterSessionExpiredNavigation()),
+      beforeClass: '''
 part 'base_connection.g.dart';
 
-@riverpod
-BaseConnection baseConnection(Ref ref) {
-  return BaseConnection.create();
-}
-
-class BaseConnection extends DioExtended {
-  BaseConnection._internal(Map<String, String> headers)
+/// keepAlive: must NOT be auto-disposed. A disposed connection would be rebuilt
+/// with whatever token was stored at that moment and drop in-flight refreshes.
+@Riverpod(keepAlive: true)
+BaseConnection baseConnection(Ref ref) => BaseConnection();
+''',
+      construction: '''
+  BaseConnection()
     : super(
         baseUrl: EnvConfig.apiBaseUrl,
-        headers: headers,
+        headers: _buildAuthHeaders(),
         tokenExpiredCode: 402,
         /// If your token source is async (e.g. fetched from a remote call),
         /// replace [headers] with [headersAsync] and make _buildAuthHeaders async:
         // headersAsync: _buildAuthHeadersAsync(),
       );
-
-  static BaseConnection create() {
-    return BaseConnection._internal(_buildAuthHeaders());
+''',
+    );
   }
 
-  /// Called automatically by DioExtended when the server returns tokenExpiredCode (402).
-  /// Fetch and save the new token here, then return the updated auth headers.
-  /// DioExtended will retry the original request with these new headers.
-  @override
-  Future<dynamic> handleTokenExpired() async {
-    /// TODO: call your refresh-token endpoint and save the result to UserSessions
-    return _buildAuthHeaders();
-  }
-
-  static Map<String, String> _buildAuthHeaders() {
-    final token = UserSessions.getToken() ?? '';
-    return {'token': 'Bearer \$token'};
-  }
-}
-''';
-  }
-
+  /// Bloc: no DI container in the dependencies, so the connection is a lazy
+  /// singleton. Datasources can call `BaseConnection()` and always get the same
+  /// instance, which keeps auth headers consistent app-wide.
   static String baseConnectionBloc() {
-    return '''
-import 'package:dio_extended/diox.dart';
-
-import '../../sessions/user_session.dart';
-import '../config/env_config.dart';
-
-class BaseConnection extends DioExtended {
+    return _baseConnectionSource(
+      packageImports: [
+        "import 'package:flutter/material.dart';",
+        "import 'package:go_router/go_router.dart';",
+        "import 'package:xwidgets_pack/xwidgets.dart';",
+        "import '../../routes/routes.dart';",
+      ],
+      redirectToLogin: _redirectToLoginMethod(_goRouterSessionExpiredNavigation()),
+      construction: '''
   BaseConnection._internal()
     : super(
         baseUrl: EnvConfig.apiBaseUrl,
@@ -1300,174 +1416,476 @@ class BaseConnection extends DioExtended {
         // headersAsync: _buildAuthHeadersAsync(),
       );
 
-  static BaseConnection? _instance;
-  factory BaseConnection() => _instance ??= BaseConnection._internal();
+  static final BaseConnection _instance = BaseConnection._internal();
 
-  /// Call this after an external token refresh to force a new instance
-  /// for the next consumer (e.g. after login, after token rotation).
-  static void reset() => _instance = null;
+  /// Always returns the same instance. Never recreate it to "reset" the token:
+  /// use [saveSession] / [clearSession] so every holder sees the new headers.
+  factory BaseConnection() => _instance;
+''',
+    );
+  }
 
+  /// Provider: the connection is created once by a `Provider<BaseConnection>` at
+  /// the app root (see `app.dart`) and injected with `context.read<BaseConnection>()`.
+  static String baseConnectionProvider() {
+    return _baseConnectionSource(
+      packageImports: [
+        "import 'package:flutter/material.dart';",
+        "import 'package:go_router/go_router.dart';",
+        "import 'package:xwidgets_pack/xwidgets.dart';",
+        "import '../../routes/routes.dart';",
+      ],
+      redirectToLogin: _redirectToLoginMethod(_goRouterSessionExpiredNavigation()),
+      construction: '''
+  BaseConnection()
+    : super(
+        baseUrl: EnvConfig.apiBaseUrl,
+        headers: _buildAuthHeaders(),
+        tokenExpiredCode: 402,
+        /// If your token source is async (e.g. fetched from a remote call),
+        /// replace [headers] with [headersAsync] and make _buildAuthHeaders async:
+        // headersAsync: _buildAuthHeadersAsync(),
+      );
+''',
+    );
+  }
+
+  /// Builds a `BaseConnection` source file. Only how the instance is created /
+  /// shared ([construction], [beforeClass], [packageImports]) differs per state
+  /// management; token + refresh handling is identical (see
+  /// [_baseConnectionAuthMembers]).
+  static String _baseConnectionSource({
+    required String construction,
+    required String redirectToLogin,
+    List<String> packageImports = const [],
+    String beforeClass = '',
+  }) {
+    final packages = packageImports.isEmpty
+        ? ''
+        : '${packageImports.join('\n')}\n';
+    final before = beforeClass.isEmpty ? '' : '$beforeClass\n';
+    return '''
+import 'package:dio_extended/diox.dart';
+$packages
+import '../../sessions/user_session.dart';
+import '../config/env_config.dart';
+import '../models/global_api_response.dart';
+
+${before}class BaseConnection extends DioExtended {
+$construction
+$redirectToLogin
+${_baseConnectionAuthMembers()}}
+''';
+  }
+
+  /// Clears the session, then opens login on the next frame.
+  ///
+  /// [navigation] is state-management specific (GetX vs go_router) and is
+  /// inserted outside the shared refresh section so that section stays identical.
+  static String _redirectToLoginMethod(String navigation) {
+    return '''
+  var _redirectingToLogin = false;
+
+  /// Drops the stored session and opens login. Repeated calls in the same
+  /// frame (queued requests after one failed refresh) navigate only once.
+  void _redirectToLogin() {
+    if (_redirectingToLogin) return;
+    _redirectingToLogin = true;
+    try {
+      clearSession();
+    } catch (e) {
+      debugPrint('Session cleanup failed: \$e');
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        $navigation
+      } catch (e) {
+        debugPrint('Redirect to login failed: \$e');
+      } finally {
+        _redirectingToLogin = false;
+      }
+    });
+  }
+''';
+  }
+
+  static String _goRouterSessionExpiredNavigation() {
+    return '''
+final context = XSnackbar.navigatorKey.currentContext;
+        if (context != null && context.mounted) {
+          final router = GoRouter.of(context);
+          while (router.canPop()) {
+            router.pop();
+          }
+          context.go(Routes.login);
+        }''';
+  }
+
+  /// Token + refresh handling shared by every BaseConnection variant.
+  ///
+  /// How DioExtended works (so this stays bug-free):
+  /// - Headers passed to the constructor are applied ONCE. To change the token
+  ///   later, mutate `dio.options.headers` on the same instance
+  ///   ([updateAuthHeaders]); never swap the instance.
+  /// - On `tokenExpiredCode`, DioExtended calls [handleTokenExpired], merges the
+  ///   returned headers into `dio.options.headers` and retries the request once.
+  ///   Concurrent 4xx responses wait for the same refresh (single-flight).
+  /// - Requests made INSIDE [handleTokenExpired] never trigger another refresh,
+  ///   so the refresh call can safely use this same connection.
+  /// - Throwing from [handleTokenExpired] fails the original (and queued) requests.
+  /// - A failed refresh also clears the session and opens login ([_redirectToLogin]).
+  static String _baseConnectionAuthMembers() {
+    return '''
+  static const String _authHeaderKey = 'token';
+
+  /// Saves the tokens and applies them to this live connection.
+  ///
+  /// Call it right after a successful login, e.g.
+  /// `connection.saveSession(token: ..., refreshToken: ...)`.
+  void saveSession({required String token, String? refreshToken}) {
+    UserSessions.saveToken(token);
+    if (refreshToken != null) UserSessions.saveRefreshToken(refreshToken);
+    updateAuthHeaders();
+  }
+
+  /// Clears the stored session and the auth headers. Call it on logout.
+  void clearSession() {
+    UserSessions.clearSession();
+    clearAuthHeaders();
+  }
+
+  /// Re-applies the token stored in [UserSessions] to this connection.
+  void updateAuthHeaders() {
+    dio.options.headers.remove(_authHeaderKey);
+    dio.options.headers.addAll(_buildAuthHeaders());
+  }
+
+  /// Removes the auth header from this connection.
+  void clearAuthHeaders() {
+    dio.options.headers.remove(_authHeaderKey);
+  }
+
+  /// Called by DioExtended when the server answers with `tokenExpiredCode`.
+  ///
+  /// Exchange the stored refresh token for a new token, save it and return the
+  /// auth headers (auth only, never `Content-Type`). DioExtended then retries
+  /// the failed request with them.
   @override
-  Future<dynamic> handleTokenExpired() async {
-    /// TODO: call refresh endpoint, save new token to UserSessions
-    reset();
-    return _buildAuthHeaders();
+  Future<Map<String, dynamic>> handleTokenExpired() async {
+    try {
+      final refreshToken = UserSessions.getRefreshToken();
+      if (refreshToken == null || refreshToken.isEmpty) {
+        throw StateError('Session expired: no refresh token available.');
+      }
+
+      // TODO: adjust the endpoint, body and response keys to your API.
+      final result = await callApiRequest<GlobalApiResponse>(
+        request: () => post(
+          '/api/refresh-token',
+          body: {'refreshToken': refreshToken},
+        ),
+        parseData: (data) => GlobalApiResponse.fromJson(data),
+      );
+
+      final payload = result.data?.data;
+      final tokens = payload is Map ? payload : null;
+      final newToken = tokens?['token'] as String?;
+      if (!result.isSuccess || newToken == null || newToken.isEmpty) {
+        throw StateError(result.message ?? 'Failed to refresh token.');
+      }
+
+      saveSession(
+        token: newToken,
+        refreshToken: tokens?['refreshToken'] as String? ?? refreshToken,
+      );
+      return _buildAuthHeaders();
+    } catch (error) {
+      _redirectToLogin();
+      if (error is StateError) rethrow;
+      throw StateError('Failed to refresh token.');
+    }
   }
 
+  /// Empty when there is no token, so no bogus `Bearer ` header is sent
+  /// before login.
   static Map<String, String> _buildAuthHeaders() {
-    final token = UserSessions.getToken() ?? '';
-    return {'token': 'Bearer \$token'};
+    final token = UserSessions.getToken();
+    if (token == null || token.isEmpty) return {};
+    return {_authHeaderKey: 'Bearer \$token'};
   }
+''';
+  }
+
+  /// Generated `lib/core/config/session_storage_keys.dart` (unique per project).
+  static String sessionStorageKeysFile(SessionStorageKeys keys) {
+    return '''
+/// Local storage keys for [StorageHelper]. Generated once for this project.
+abstract final class SessionStorageKeys {
+  static const userData = '${keys.userData}';
+  static const accessToken = '${keys.accessToken}';
+  static const refreshToken = '${keys.refreshToken}';
+  static const phone = '${keys.phone}';
+  static const sessionActive = '${keys.sessionActive}';
 }
 ''';
   }
 
-  /// Returns the Dart code for the UserSessions class for GetX projects.
-  static String userSessionsGetx() {
+  /// Clears session + auth headers, then navigates to login with a clean stack.
+  static String goRouterLogoutBody({
+    required String connectionExpression,
+  }) {
+    return '''
+    try {
+      $connectionExpression.clearSession();
+    } catch (e) {
+      debugPrint('Logout cleanup failed: \$e');
+      try {
+        UserSessions.clearSession();
+      } catch (_) {}
+    }
+    if (!context.mounted) return;
+    final router = GoRouter.of(context);
+    while (router.canPop()) {
+      router.pop();
+    }
+    context.go(Routes.login);
+''';
+  }
+
+  /// Persists phone + user session locally after a successful login.
+  static String persistLoginSessionBlock({
+    required String phoneExpression,
+    required String connectionExpression,
+  }) {
+    return '''
+    final sessionPhone = ($phoneExpression).toString().trim();
+    if (sessionPhone.isEmpty) {
+      throw StateError('Phone number is required.');
+    }
+    UserSessions.openSession(
+      phone: sessionPhone,
+      user: UserModel(
+        id: 'local',
+        name: sessionPhone,
+        email: '',
+        phone: sessionPhone,
+      ),
+      accessToken: 'local-access-token',
+    );
+    $connectionExpression.saveSession(token: 'local-access-token');
+''';
+  }
+
+  /// Demo login: skips HTTP so generated apps work before the backend is ready.
+  ///
+  /// [trailingLines] optional code after [persistLoginSessionBlock] (e.g. `return`
+  /// for clean-architecture notifiers). [realApiSnippet] overrides the default
+  /// commented example for calling the real endpoint.
+  static String demoLoginBypassBlock({
+    required String phoneExpression,
+    required String connectionExpression,
+    String trailingLines = '',
+    String? realApiSnippet,
+  }) {
+    final trailing =
+        trailingLines.isEmpty ? '' : '$trailingLines\n';
+    final realApi = realApiSnippet ?? _demoLoginRealApiCommentDefault();
+    return '''
+    // --- DEMO LOGIN (no HTTP) ------------------------------------------------
+    // Lets you test splash, session, home, and logout without a working API.
+    // Before production:
+    //   1. Set [EnvConfig.apiBaseUrl] to a reachable host (not a placeholder
+    //      like `development` — that causes "Failed host lookup" in Dio).
+    //   2. Replace this DEMO block with the REAL API snippet below (or the
+    //      matching block in [LoginRemoteDatasource] / login listener).
+    //   3. In login_view, uncomment listener handling for API errors and
+    //      failed [ApiResult.isSuccess] (search for "REAL API" in that file).
+    await Future.delayed(const Duration(milliseconds: 300));
+${persistLoginSessionBlock(
+  phoneExpression: phoneExpression,
+  connectionExpression: connectionExpression,
+)}
+$trailing// --- REAL API (uncomment; remove DEMO block above when ready) --------
+$realApi
+''';
+  }
+
+  static String _demoLoginRealApiCommentDefault() {
+    return '''
+    // final result = await remoteDatasource.login(
+    //   emailOrPhone: emailOrPhone,
+    //   password: password,
+    // );
+    // if (!result.isSuccess) {
+    //   throw StateError(result.message ?? 'Login failed');
+    // }
+    // Map access/refresh tokens from result.data, then:
+    // UserSessions.openSession(...); connection.saveSession(...);
+''';
+  }
+
+  /// Comment block for generated [login_remote_datasource.dart] files.
+  static String loginRemoteDatasourceFileHeader() {
+    return '''
+/// HTTP login lives here. The generated login flow uses the DEMO LOGIN block
+/// in the notifier/bloc/controller until you wire the real API.
+///
+/// When enabling the API:
+/// - Fix [EnvConfig.apiBaseUrl] (valid scheme + host, e.g. https://api.example.com).
+/// - Align [login] path and JSON field names with your backend.
+/// - Parse tokens from the response and call [UserSessions.openSession] /
+///   [BaseConnection.saveSession] after a successful login.
+''';
+  }
+
+  static String userSessionsGetx() =>
+      userSessions(userModelImport: "import '../features/login/models/user_model.dart';");
+
+  static String userSessionsRiverpod() => userSessions(
+        userModelImport:
+            "import '../features/login/data/models/user_model.dart';",
+      );
+
+  static String userSessionsBloc() => userSessions(
+        userModelImport:
+            "import '../features/login/data/models/user_model.dart';",
+      );
+
+  /// Local session + user profile via [StorageHelper] (secure_compressor).
+  static String userSessions({required String userModelImport}) {
     return '''
 import 'dart:convert';
 
 import 'package:secure_compressor/secure_compressor.dart';
 
-import '../features/login/models/user_model.dart';
+import '../core/config/session_storage_keys.dart';
+$userModelImport
 
 class UserSessions {
-  // Singleton instance
   static final UserSessions _instance = UserSessions._internal();
 
-  // Private constructor
   UserSessions._internal();
 
-  // Factory constructor to return the singleton instance
   factory UserSessions() => _instance;
-
-  static const String dataUserKey = 'dataUserKey';
-  static const String dataTokenKey = 'dataTokenKey';
 
   static void saveUserData({UserModel? userData, dynamic userDataMap}) {
     if (userData == null && userDataMap == null) return;
-    final dataUserString = userData != null ? jsonEncode(userData.toJson()) : userDataMap.toString();
-    StorageHelper.saveString(key: dataUserKey, value: dataUserString);
+    final dataUserString = userData != null
+        ? jsonEncode(userData.toJson())
+        : userDataMap.toString();
+    StorageHelper.saveString(
+      key: SessionStorageKeys.userData,
+      value: dataUserString,
+    );
   }
 
   static UserModel? getUserData() {
-    final dataUserString = StorageHelper.getString(key: dataUserKey);
+    final dataUserString =
+        StorageHelper.getString(key: SessionStorageKeys.userData);
     if (dataUserString == null) {
       return null;
     }
     return UserModel.fromJson(jsonDecode(dataUserString));
   }
 
+  static void savePhone(String phone) {
+    StorageHelper.saveString(key: SessionStorageKeys.phone, value: phone);
+  }
+
+  static String? getPhone() {
+    return StorageHelper.getString(key: SessionStorageKeys.phone);
+  }
+
   static void saveToken(String token) {
-    StorageHelper.saveString(key: dataTokenKey, value: token);
+    StorageHelper.saveString(key: SessionStorageKeys.accessToken, value: token);
   }
+
   static String? getToken() {
-    return StorageHelper.getString(key: dataTokenKey);
-  }
-  
-  static void deletUserData(){
-    StorageHelper.clear();
-  }
-}
-
-''';
+    return StorageHelper.getString(key: SessionStorageKeys.accessToken);
   }
 
-  /// Returns the Dart code for the UserSessions class for Riverpod projects.
-  static String userSessionsRiverpod() {
-    return '''
-import 'dart:convert';
-
-import 'package:secure_compressor/secure_compressor.dart';
-
-import '../../features/login/data/models/user_model.dart';
-
-class UserSessions {
-  // Singleton instance
-  static final UserSessions _instance = UserSessions._internal();
-
-  // Private constructor
-  UserSessions._internal();
-
-  // Factory constructor to return the singleton instance
-  factory UserSessions() => _instance;
-
-  static const String dataUserKey = 'dataUserKey';
-  static const String dataTokenKey = 'dataTokenKey';
-
-  static void saveUserData({UserModel? userData, dynamic userDataMap}) {
-    if (userData == null && userDataMap == null) return;
-    final dataUserString = userData != null ? jsonEncode(userData.toJson()) : userDataMap.toString();
-    StorageHelper.saveString(key: dataUserKey, value: dataUserString);
+  static void saveRefreshToken(String token) {
+    StorageHelper.saveString(
+      key: SessionStorageKeys.refreshToken,
+      value: token,
+    );
   }
 
-  static UserModel? getUserData() {
-    final dataUserString = StorageHelper.getString(key: dataUserKey);
-    if (dataUserString == null) {
-      return null;
+  static String? getRefreshToken() {
+    return StorageHelper.getString(key: SessionStorageKeys.refreshToken);
+  }
+
+  static void markSessionActive() {
+    StorageHelper.saveString(
+      key: SessionStorageKeys.sessionActive,
+      value: '1',
+    );
+  }
+
+  static void markSessionInactive() {
+    StorageHelper.saveString(
+      key: SessionStorageKeys.sessionActive,
+      value: '0',
+    );
+  }
+
+  /// True when the user logged in before (survives app restarts).
+  static bool hasActiveSession() {
+    if (!StorageHelper.isInitialized()) {
+      return false;
     }
-    return UserModel.fromJson(jsonDecode(dataUserString));
-  }
-
-  static void saveToken(String token) {
-    StorageHelper.saveString(key: dataTokenKey, value: token);
-  }
-  static String? getToken() {
-    return StorageHelper.getString(key: dataTokenKey);
-  }
-  
-
-  static void deletUserData(){
-    StorageHelper.clear();
-  }
-}
-''';
-  }
-
-  /// Returns the Dart code for the UserSessions class for Bloc projects.
-  static String userSessionsBloc() {
-    return '''
-import 'dart:convert';
-
-import 'package:secure_compressor/secure_compressor.dart';
-
-import '../features/login/data/models/user_model.dart';
-
-class UserSessions {
-  // Singleton instance
-  static final UserSessions _instance = UserSessions._internal();
-
-  // Private constructor
-  UserSessions._internal();
-
-  // Factory constructor to return the singleton instance
-  factory UserSessions() => _instance;
-
-  static const String dataUserKey = 'dataUserKey';
-  static const String dataTokenKey = 'dataTokenKey';
-
-  static void saveUserData({UserModel? userData, dynamic userDataMap}) {
-    if (userData == null && userDataMap == null) return;
-    final dataUserString = userData != null ? jsonEncode(userData.toJson()) : userDataMap.toString();
-    StorageHelper.saveString(key: dataUserKey, value: dataUserString);
-  }
-
-  static UserModel? getUserData() {
-    final dataUserString = StorageHelper.getString(key: dataUserKey);
-    if (dataUserString == null) {
-      return null;
+    if (StorageHelper.getString(key: SessionStorageKeys.sessionActive) != '1') {
+      return false;
     }
-    return UserModel.fromJson(jsonDecode(dataUserString));
+    final phone = getPhone();
+    return phone != null && phone.trim().isNotEmpty;
   }
 
-  static void saveToken(String token) {
-    StorageHelper.saveString(key: dataTokenKey, value: token);
-  }
-  static String? getToken() {
-    return StorageHelper.getString(key: dataTokenKey);
+  /// Call after login: stores phone, user profile, optional tokens, session flag.
+  static void openSession({
+    required String phone,
+    UserModel? user,
+    String? accessToken,
+    String? refreshToken,
+  }) {
+    final normalizedPhone = phone.trim();
+    if (normalizedPhone.isEmpty) {
+      return;
+    }
+    savePhone(normalizedPhone);
+    markSessionActive();
+    try {
+      saveUserData(
+        userData: user ??
+            UserModel(
+              id: 'local',
+              name: normalizedPhone,
+              email: '',
+              phone: normalizedPhone,
+            ),
+      );
+    } catch (_) {
+      // Phone + session flag are enough for auto-login; profile JSON is optional.
+    }
+    if (accessToken != null && accessToken.isNotEmpty) {
+      saveToken(accessToken);
+    }
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      saveRefreshToken(refreshToken);
+    }
   }
 
-  static void deletUserData(){
+  /// Clears session keys only (keeps other [StorageHelper] entries if any).
+  static void clearSession() {
+    markSessionInactive();
+    StorageHelper.saveString(key: SessionStorageKeys.phone, value: '');
+    StorageHelper.saveString(key: SessionStorageKeys.accessToken, value: '');
+    StorageHelper.saveString(key: SessionStorageKeys.refreshToken, value: '');
+    StorageHelper.saveString(key: SessionStorageKeys.userData, value: '');
+  }
+
+  static void deletUserData() {
+    clearSession();
     StorageHelper.clear();
   }
 }
@@ -1706,7 +2124,8 @@ preferred-supported-locales:
   "homeExplore": "Explore",
   "homeNotifications": "Notifications",
   "homeProfile": "Profile",
-  "homeSettings": "Settings"
+  "homeSettings": "Settings",
+  "homeExit": "Log out"
 }
 ''';
   }
@@ -1727,7 +2146,8 @@ preferred-supported-locales:
   "homeExplore": "Jelajahi",
   "homeNotifications": "Notifikasi",
   "homeProfile": "Profil",
-  "homeSettings": "Pengaturan"
+  "homeSettings": "Pengaturan",
+  "homeExit": "Keluar"
 }
 ''';
   }
@@ -1736,14 +2156,13 @@ preferred-supported-locales:
   /// Returns the Dart code for the FirebaseService class.
   static String firebaseService() {
     return '''
-import 'dart:io';
-
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../firebase_options.dart';
 import 'notification_service.dart';
 
 typedef FirebaseTokenCallback = void Function(String token);
@@ -1752,46 +2171,48 @@ class FirebaseService {
   static Future<void> init({
     FirebaseTokenCallback? onToken,
   }) async {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-    // Analytics
+    // Analytics (all platforms)
     FirebaseAnalytics.instance;
 
-    // Crashlytics - capture Flutter errors
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    // Crashlytics — not supported on web the same way as mobile
+    if (!kIsWeb) {
+      FlutterError.onError =
+          FirebaseCrashlytics.instance.recordFlutterFatalError;
 
-    PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      return true;
-    };
-
-    // Push notification + local notification
-    await NotificationService.init();
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+    }
 
     final messaging = FirebaseMessaging.instance;
 
-    // Request permission (iOS)
-    if (!kIsWeb && Platform.isIOS) {
-      await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
+    if (!kIsWeb) {
+      await NotificationService.init();
+
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        await messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+          provisional: false,
+        );
+      }
+
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        NotificationService.showRemoteMessage(message);
+      });
     }
 
-    // Get token
     final token = await messaging.getToken();
     if (token != null && token.isNotEmpty) {
       onToken?.call(token);
     }
 
-    // Foreground: show local notification
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      NotificationService.showRemoteMessage(message);
-    });
-
-    // Token refresh
     messaging.onTokenRefresh.listen((newToken) {
       if (newToken.isNotEmpty) {
         onToken?.call(newToken);
@@ -1817,7 +2238,7 @@ class NotificationService {
     const ios = DarwinInitializationSettings();
 
     const settings = InitializationSettings(android: android, iOS: ios);
-    await _plugin.initialize(settings);
+    await _plugin.initialize(settings: settings);
 
     // Android channel
     const channel = AndroidNotificationChannel(
@@ -1847,10 +2268,10 @@ class NotificationService {
     const details = NotificationDetails(android: androidDetails);
 
     await _plugin.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      notification.title ?? '',
-      notification.body ?? '',
-      details,
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: notification.title,
+      body: notification.body,
+      notificationDetails: details,
     );
   }
 }

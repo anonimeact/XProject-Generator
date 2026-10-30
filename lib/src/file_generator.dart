@@ -4,11 +4,18 @@ import 'package:path/path.dart' as path;
 
 import '../core/configs/project_config.dart';
 import '../core/path.dart';
+import 'ci_cd_generator.dart';
+import 'integrations/guide_writer.dart';
+import 'project_config_file.dart';
+import 'project_gitignore.dart';
+import 'templates/bloc/bloc_feature_template.dart';
+import 'templates/bloc/bloc_templates.dart';
 import 'templates/common_templates.dart';
 import 'templates/getx/getx_feature_template.dart';
 import 'templates/getx/getx_templates.dart';
-import 'templates/bloc/bloc_feature_template.dart';
-import 'templates/bloc/bloc_templates.dart';
+import 'templates/project_readme_template.dart';
+import 'templates/provider/provider_feature_template.dart';
+import 'templates/provider/provider_templates.dart';
 import 'templates/riverpod/riverpod_feature_template.dart';
 import 'templates/riverpod/riverpod_templates.dart';
 
@@ -54,6 +61,8 @@ class FileGenerator {
       } else {
         await _generateRiverpodFiles(libPath, config);
       }
+    } else if (config.stateManagement == StateManagement.provider) {
+      await _generateProviderFiles(libPath, config);
     } else {
       if (config.blocArchitecture == StateManagementArchitecture.clean) {
         await _generateBlocCleanFiles(libPath, config);
@@ -68,10 +77,23 @@ class FileGenerator {
     // Generate main files for each environment
     await _generateMainFiles(libPath, config);
 
+    await GuideWriter.writeAll(config);
+    await XProjectConfigFile.write(config);
+
+    await _writeFile(
+      path.join(config.projectPath, 'README.md'),
+      ProjectReadmeTemplate.content(config),
+    );
+
+    await CiCdGenerator.generate(config);
+    await ProjectGitignore.append(config);
+
     final defaultMain = File(path.join(libPath, 'main.dart'));
     if (defaultMain.existsSync()) {
       await defaultMain.delete();
     }
+    // Default widget_test imports main.dart, which this generator replaces
+    // with flavor entry points. CI writes test/smoke_test.dart instead.
     final defaultTest = File(path.join(testPath, 'widget_test.dart'));
     if (defaultTest.existsSync()) {
       await defaultTest.delete();
@@ -107,6 +129,9 @@ class FileGenerator {
         } else {
           await _generateBlocFeature(name);
         }
+        break;
+      case StateManagement.provider:
+        await _generateProviderFeature(name);
         break;
     }
   }
@@ -206,6 +231,31 @@ class FileGenerator {
           RiverpodFeatureTemplate.generalProviderClean(feature),
       '$feature/presentation/views/${feature}_view.dart':
           RiverpodFeatureTemplate.generalViewClean(feature),
+    };
+
+    for (final entry in files.entries) {
+      final file = File(path.join(basePath, entry.key));
+      file.createSync(recursive: true);
+      await file.writeAsString(entry.value);
+    }
+  }
+
+  /// Generate Provider feature files for [feature].
+  static Future<void> _generateProviderFeature(String feature) async {
+    final rootDir = findProjectRoot();
+    final basePath = path.join(rootDir.path, 'lib', 'features');
+
+    final files = {
+      '$feature/data/datasources/${feature}_remote_datasource.dart':
+          ProviderFeatureTemplate.generalRemoteDatasource(feature),
+      '$feature/data/models/${feature}_model.dart':
+          CommonTemplates.freezedModel(feature),
+      '$feature/presentation/notifiers/${feature}_notifier.dart':
+          ProviderFeatureTemplate.generalNotifier(feature),
+      '$feature/presentation/notifiers/${feature}_state.dart':
+          ProviderFeatureTemplate.generalState(feature),
+      '$feature/presentation/views/${feature}_view.dart':
+          ProviderFeatureTemplate.generalView(feature),
     };
 
     for (final entry in files.entries) {
@@ -695,6 +745,115 @@ class FileGenerator {
   }
 
   /// Generate all Bloc-specific files for a new project in [libPath] using [config].
+  static Future<void> _generateProviderFiles(
+    String libPath,
+    ProjectConfig config,
+  ) async {
+    await _writeFile(
+      path.join(libPath, 'routes/app_router.dart'),
+      ProviderTemplates.appRouter(),
+    );
+    await _writeFile(
+      path.join(libPath, 'routes/routes.dart'),
+      ProviderTemplates.routes(),
+    );
+
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/splash/presentation/notifiers/splash_notifier.dart',
+      ),
+      ProviderFeatureTemplate.splashNotifier(config),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/splash/presentation/views/splash_view.dart'),
+      ProviderFeatureTemplate.splashView(),
+    );
+
+    await _writeFile(
+      path.join(libPath, 'features/login/data/models/user_model.dart'),
+      CommonTemplates.userModel(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/data/datasources/login_remote_datasource.dart',
+      ),
+      ProviderFeatureTemplate.loginRemoteDatasource(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/presentation/notifiers/login_state.dart',
+      ),
+      ProviderFeatureTemplate.loginState(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/presentation/notifiers/login_notifier.dart',
+      ),
+      ProviderFeatureTemplate.loginNotifier(),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/login/presentation/views/login_view.dart'),
+      ProviderFeatureTemplate.loginView(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/login/presentation/widgets/auth_scaffold.dart',
+      ),
+      CommonTemplates.authScaffold('../../../../'),
+    );
+
+    await _writeFile(
+      path.join(libPath, 'features/home/data/models/home_model.dart'),
+      CommonTemplates.freezedModel('home'),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/data/datasources/home_remote_datasource.dart',
+      ),
+      ProviderFeatureTemplate.generalRemoteDatasource('home'),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/presentation/notifiers/home_state.dart',
+      ),
+      ProviderFeatureTemplate.generalState('home'),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/presentation/notifiers/home_notifier.dart',
+      ),
+      ProviderFeatureTemplate.generalNotifier('home'),
+    );
+    await _writeFile(
+      path.join(libPath, 'features/home/presentation/views/home_view.dart'),
+      ProviderFeatureTemplate.homeView(),
+    );
+    await _writeFile(
+      path.join(
+        libPath,
+        'features/home/presentation/widgets/home_shell.dart',
+      ),
+      CommonTemplates.homeShell('../../../../'),
+    );
+
+    await _writeFile(
+      path.join(libPath, 'sessions/user_session.dart'),
+      CommonTemplates.userSessionsBloc(),
+    );
+    await _writeFile(
+      path.join(libPath, 'theme/text_style.dart'),
+      CommonTemplates.textStyleHelperBloc(),
+    );
+  }
+
   static Future<void> _generateBlocFiles(
     String libPath,
     ProjectConfig config,
@@ -982,17 +1141,23 @@ class FileGenerator {
 
     await _writeFile(
       path.join(libPath, 'core/services/base_connection.dart'),
-      config.stateManagement == StateManagement.getx
-          ? CommonTemplates.baseConnectionGetX()
-          : config.stateManagement == StateManagement.riverpod
-          ? CommonTemplates.baseConnectionRiverpod()
-          : CommonTemplates.baseConnectionBloc(),
+      switch (config.stateManagement) {
+        StateManagement.getx => CommonTemplates.baseConnectionGetX(),
+        StateManagement.riverpod => CommonTemplates.baseConnectionRiverpod(),
+        StateManagement.provider => CommonTemplates.baseConnectionProvider(),
+        StateManagement.bloc => CommonTemplates.baseConnectionBloc(),
+      },
     );
 
     // Config
     await _writeFile(
       path.join(libPath, 'core/config/env_config.dart'),
       CommonTemplates.envConfig(),
+    );
+
+    await _writeFile(
+      path.join(libPath, 'core/config/session_storage_keys.dart'),
+      CommonTemplates.sessionStorageKeysFile(config.sessionStorageKeys),
     );
 
     if (config.useSecretKey) {
@@ -1049,11 +1214,12 @@ class FileGenerator {
     // App widget
     await _writeFile(
       path.join(libPath, 'app.dart'),
-      config.stateManagement == StateManagement.getx
-          ? CommonTemplates.appWidgetGetX(config)
-          : config.stateManagement == StateManagement.riverpod
-          ? CommonTemplates.appWidgetRiverpod(config)
-          : CommonTemplates.appWidgetBloc(config),
+      switch (config.stateManagement) {
+        StateManagement.getx => CommonTemplates.appWidgetGetX(config),
+        StateManagement.riverpod => CommonTemplates.appWidgetRiverpod(config),
+        StateManagement.provider => CommonTemplates.appWidgetProvider(config),
+        StateManagement.bloc => CommonTemplates.appWidgetBloc(config),
+      },
     );
   }
 }

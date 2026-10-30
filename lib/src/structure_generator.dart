@@ -4,8 +4,14 @@ import 'dart:isolate';
 
 import 'package:path/path.dart' as path;
 
+import '../core/configs/app_icon_config.dart';
 import '../core/configs/project_config.dart';
+import 'android_gradle_patches.dart';
+import 'integrations/firebase_native_files.dart';
+import 'integrations/firebase_shared_support.dart';
+import 'integrations/setup_change_report.dart';
 import 'templates/common_templates.dart';
+import 'vscode_config_builder.dart';
 
 /// XProject Generator - Structure Generator
 ///
@@ -29,6 +35,8 @@ class StructureGenerator {
       } else {
         await _generateRiverpodStructure(libPath);
       }
+    } else if (config.stateManagement == StateManagement.provider) {
+      await _generateProviderStructure(libPath);
     } else {
       if (config.blocArchitecture == StateManagementArchitecture.clean) {
         await _generateBlocCleanStructure(libPath);
@@ -52,7 +60,8 @@ class StructureGenerator {
     // Copy font files
     await copyFontFiles(config);
 
-    await setupIOSFirebaseAppDelegate(config);
+    // Default launcher icon (Anonimeact logo → assets/icons/app_icon.png)
+    await copyDefaultAppIcon(config);
   }
 
   static Future<void> _generateGetXStructure(String libPath) async {
@@ -103,6 +112,26 @@ class StructureGenerator {
       'features/home/presentation/views',
       'features/splash/presentation/providers',
       'features/splash/presentation/views',
+    ];
+
+    for (final dir in dirs) {
+      await Directory(path.join(libPath, dir)).create(recursive: true);
+    }
+  }
+
+  static Future<void> _generateProviderStructure(String libPath) async {
+    final dirs = [
+      'features/splash/presentation/notifiers',
+      'features/splash/presentation/views',
+      'features/login/data/datasources',
+      'features/login/data/models',
+      'features/login/presentation/notifiers',
+      'features/login/presentation/views',
+      'features/home/data/datasources',
+      'features/home/data/models',
+      'features/home/presentation/notifiers',
+      'features/home/presentation/views',
+      'routes',
     ];
 
     for (final dir in dirs) {
@@ -196,18 +225,89 @@ class StructureGenerator {
     return 'BASE_URL=https://$env';
   }
 
-  static Future<void> _createFlavorConfigs(ProjectConfig config) async {
-    // Android flavor configuration
-    await _createAndroidFlavors(config);
+  /// Ensures Android and iOS product flavors exist for [config].
+  ///
+  /// Safe to run on an existing project: a `productFlavors` block that is
+  /// already present is not duplicated. When [ProjectConfig.useFirebase] is
+  /// set, [applyFirebaseSupport] runs afterwards.
+  static Future<void> ensureFlavorConfigs(ProjectConfig config) {
+    return _createFlavorConfigs(config);
+  }
 
-    if (config.useFirebase) {
-      await _enableAndroidDesugaring(config);
+  static Future<void> _createFlavorConfigs(ProjectConfig config) async {
+    if (config.targetsAndroid) {
+      await _createAndroidFlavors(config);
+      await _ensureAndroidGradleProperties(config);
     }
 
-    // iOS flavor configuration
-    await _createIOSFlavors(config);
+    if (config.useFirebase) {
+      await applyFirebaseSupport(config);
+    }
+  }
 
-    await _createIOSFirebaseScript(config);
+  /// Adds Firebase native pieces that `xproject create` writes when Firebase
+  /// is accepted at creation time.
+  ///
+  /// Placeholder `google-services.json` and `GoogleService-Info.plist` files
+  /// are created only when missing, so a real download from Firebase Console
+  /// is never replaced. Gradle plugin lines and the iOS AppDelegate patch are
+  /// inserted only when absent.
+  static Future<SetupChangeReport> applyFirebaseSupport(
+    ProjectConfig config,
+  ) async {
+    final report = SetupChangeReport();
+    if (!config.useFirebase) {
+      return report;
+    }
+
+    if (config.targetsAndroid) {
+      final gradlePath = _androidBuildFile(config);
+      final gradleFile = File(gradlePath);
+      final beforeDesugar = await gradleFile.readAsString();
+      await _enableAndroidDesugaring(config);
+      final afterDesugar = await gradleFile.readAsString();
+      if (beforeDesugar != afterDesugar) {
+        report.written.add(
+          '${path.relative(gradlePath, from: config.projectPath)} (desugaring)',
+        );
+      }
+      await _ensureFirebaseGradlePlugins(config, report);
+      await _writeAndroidGoogleServicesPlaceholders(config, report);
+    }
+
+    if (config.targetsIos) {
+      await _createIOSFlavors(config, report);
+      await _createIOSFirebaseScript(config, report);
+      final changedDelegate = await _patchIosAppDelegate(config);
+      if (changedDelegate) {
+        report.written.add('ios AppDelegate FirebaseApp.configure()');
+      } else {
+        report.skipped.add('ios AppDelegate');
+      }
+    }
+
+    if (!config.targetsAndroid && !config.targetsIos) {
+      if (FirebaseSharedSupport.includeWebOptions(config)) {
+        report.notes.add(
+          'Web Firebase placeholders were added under lib/firebase_options.dart '
+          'and web/firebase-messaging-sw.js when missing. Replace YOUR_* values '
+          'from Firebase Console (Web app) or run flutterfire configure.',
+        );
+      } else {
+        report.notes.add(
+          'No Android or iOS target. Native Firebase files were not created. '
+          'Add the web platform (or Android/iOS) and finish Firebase config in GUIDE.md.',
+        );
+      }
+    }
+
+    await FirebaseSharedSupport.apply(
+      config,
+      report,
+      firebaseServiceImport: "import '../../../firebase_options.dart';",
+    );
+
+    return report;
   }
 
   static Future<void> _createAndroidFlavors(ProjectConfig config) async {
@@ -220,22 +320,31 @@ class StructureGenerator {
       );
     }
     var content = await buildGradle.readAsString();
+    final isKotlinDsl = buildGradlePath.endsWith('.kts');
 
-    // Add flavor dimensions and flavors
-    final flavorConfig =
-        '''
+    content = ensureBuiltInKotlinAppGradle(
+      content,
+      isKotlinDsl: isKotlinDsl,
+    );
+    content = ensureAndroidResValuesEnabled(
+      content,
+      isKotlinDsl: isKotlinDsl,
+    );
+
+    if (!content.contains('productFlavors')) {
+      final flavorConfig =
+          '''
     flavorDimensions += "environment"
     
     productFlavors {
         create("development") {
             dimension = "environment"
-            applicationIdSuffix = ".dev"
+            applicationIdSuffix = ".development"
             versionNameSuffix = "-dev"
             resValue("string", "app_name", "${config.displayName} Dev")
         }
         create("staging") {
             dimension = "environment"
-        /// Create Android flavor configuration and google-services.json for each environment.
             applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
             resValue("string", "app_name", "${config.displayName} Staging")
@@ -247,25 +356,14 @@ class StructureGenerator {
     }
 ''';
 
-    content = content.replaceFirst(
-      'ndkVersion = flutter.ndkVersion',
-      'ndkVersion = flutter.ndkVersion\n$flavorConfig',
-    );
-
-    await buildGradle.writeAsString(content);
-
-    // Create google-services.json directories
-    for (final env in ['development', 'staging', 'production']) {
-      final dir = Directory(
-        path.join(config.projectPath, 'android/app/src/$env'),
-      );
-      await dir.create(recursive: true);
-
-      final jsonFile = File(path.join(dir.path, 'google-services.json'));
-      await jsonFile.writeAsString(
-        _getGoogleServicesTemplate(config.androidPackageForEnv(env)),
+      content = content.replaceFirst(
+        'ndkVersion = flutter.ndkVersion',
+        'ndkVersion = flutter.ndkVersion\n$flavorConfig',
       );
     }
+
+    await buildGradle.writeAsString(content);
+    await _patchAndroidManifestAppName(config);
   }
 
   /// Get the path to the Android build.gradle or build.gradle.kts file for [config].
@@ -299,168 +397,205 @@ class StructureGenerator {
       );
     }
 
+    final isKotlinDsl = buildGradlePath.endsWith('.kts');
     var content = await buildGradle.readAsString();
-
-    // =========================
-    // 1) PATCH compileOptions {}
-    // =========================
-
-    final compileOptionsRegex = RegExp(
-      r'compileOptions\s*\{([\s\S]*?)\}',
-      multiLine: true,
-    );
-
-    if (compileOptionsRegex.hasMatch(content)) {
-      content = content.replaceFirstMapped(compileOptionsRegex, (match) {
-        final blockBody = match.group(1) ?? '';
-
-        // if already has it, keep as is
-        if (blockBody.contains('isCoreLibraryDesugaringEnabled')) {
-          /// Enable core library desugaring in Android build.gradle for Firebase support.
-          return match.group(0)!;
-        }
-
-        // Insert inside compileOptions block
-        final updatedBody =
-            '$blockBody'
-            '\n        isCoreLibraryDesugaringEnabled = true\n';
-
-        return 'compileOptions {$updatedBody    }';
-      });
-    } else {
-      // if compileOptions doesn't exist, inject inside android {}
-      const desugarCompileOptions = '''
-    
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-        isCoreLibraryDesugaringEnabled = true
-    }
-''';
-
-      if (content.contains('ndkVersion = flutter.ndkVersion')) {
-        content = content.replaceFirst(
-          'ndkVersion = flutter.ndkVersion',
-          'ndkVersion = flutter.ndkVersion\n$desugarCompileOptions',
-        );
-      } else {
-        content = content.replaceFirst(
-          'android {',
-          'android {$desugarCompileOptions',
-        );
-      }
-    }
-
-    // =========================
-    // 2) PATCH dependencies {}
-    // =========================
-    content = _injectDesugarDependency(content);
+    content = patchAndroidDesugaring(content, isKotlinDsl: isKotlinDsl);
 
     await buildGradle.writeAsString(content);
   }
 
-  static String _injectDesugarDependency(String content) {
-    if (content.contains('desugar_jdk_libs')) return content;
+  static Future<void> _ensureAndroidGradleProperties(ProjectConfig config) async {
+    final propsPath = path.join(config.projectPath, 'android', 'gradle.properties');
+    final propsFile = File(propsPath);
 
-    final depBlockRegex = RegExp(r'dependencies\s*\{', multiLine: true);
-
-    if (!depBlockRegex.hasMatch(content)) {
-      return '''$content
-dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
-}
-''';
+    if (!propsFile.existsSync()) {
+      throw Exception(
+        'Cannot configure Android gradle.properties because the file does not exist.',
+      );
     }
 
-    return content.replaceFirstMapped(depBlockRegex, (match) {
-      return '${match.group(0)}\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")';
-    });
+    var content = await propsFile.readAsString();
+    content = ensureGradlePropertiesFlags(content);
+    await propsFile.writeAsString(content);
   }
 
-  static Future<void> _createIOSFlavors(ProjectConfig config) async {
-    // Create scheme directories for each flavor
+  static Future<void> _patchAndroidManifestAppName(ProjectConfig config) async {
+    final manifestPath = path.join(
+      config.projectPath,
+      'android',
+      'app',
+      'src',
+      'main',
+      'AndroidManifest.xml',
+    );
+    final manifestFile = File(manifestPath);
+
+    if (!manifestFile.existsSync()) {
+      return;
+    }
+
+    var content = await manifestFile.readAsString();
+    content = patchAndroidManifestAppLabel(content);
+    await manifestFile.writeAsString(content);
+  }
+
+  static Future<void> _createIOSFlavors(
+    ProjectConfig config,
+    SetupChangeReport report,
+  ) async {
     final iosPath = path.join(config.projectPath, 'ios');
 
-    for (final env in ['development', 'staging', 'production']) {
+    for (final env in config.environments) {
       final configDir = Directory(path.join(iosPath, 'config', env));
-
-      /// Inject the desugar_jdk_libs dependency into the dependencies block of [content].
       await configDir.create(recursive: true);
 
-      // Create GoogleService-Info.plist for each environment
       final plistFile = File(
         path.join(configDir.path, 'GoogleService-Info.plist'),
       );
+      final relative = path.join('ios', 'config', env, 'GoogleService-Info.plist');
+      if (plistFile.existsSync()) {
+        report.skipped.add(relative);
+        continue;
+      }
       await plistFile.writeAsString(
-        _getGoogleServicePlistTemplate(config.iosBundleIdForEnv(env)),
+        FirebaseNativeFiles.googleServiceInfoPlist(config.iosBundleIdForEnv(env)),
+      );
+      report.written.add(relative);
+    }
+  }
+
+  static Future<void> _createIOSFirebaseScript(
+    ProjectConfig config,
+    SetupChangeReport report,
+  ) async {
+    final scriptPath = path.join(config.projectPath, 'ios', 'firebase.sh');
+    final file = File(scriptPath);
+    if (file.existsSync()) {
+      report.skipped.add('ios/firebase.sh');
+      return;
+    }
+
+    await file.writeAsString(CommonTemplates.firebaseSh());
+    await Process.run('chmod', ['+x', scriptPath]);
+    report.written.add('ios/firebase.sh');
+  }
+
+  static Future<void> _writeAndroidGoogleServicesPlaceholders(
+    ProjectConfig config,
+    SetupChangeReport report,
+  ) async {
+    for (final env in config.environments) {
+      final dir = Directory(
+        path.join(config.projectPath, 'android', 'app', 'src', env),
+      );
+      await dir.create(recursive: true);
+
+      final jsonFile = File(path.join(dir.path, 'google-services.json'));
+      final relative = path.join(
+        'android',
+        'app',
+        'src',
+        env,
+        'google-services.json',
+      );
+      if (jsonFile.existsSync()) {
+        report.skipped.add(relative);
+        continue;
+      }
+      await jsonFile.writeAsString(
+        FirebaseNativeFiles.googleServicesJson(config.androidPackageForEnv(env)),
+      );
+      report.written.add(relative);
+    }
+  }
+
+  static Future<void> _ensureFirebaseGradlePlugins(
+    ProjectConfig config,
+    SetupChangeReport report,
+  ) async {
+    final settings = _firstExistingFile(<String>[
+      path.join(config.projectPath, 'android', 'settings.gradle.kts'),
+      path.join(config.projectPath, 'android', 'settings.gradle'),
+    ]);
+    if (settings == null) {
+      throw SetupException(
+        'android/settings.gradle(.kts) was not found, so the Google Services '
+        'Gradle plugin could not be added.',
       );
     }
+    await _patchFirebaseGradleFile(
+      settings,
+      projectRoot: config.projectPath,
+      isSettingsFile: true,
+      report: report,
+    );
+
+    final appGradle = File(_androidBuildFile(config));
+    await _patchFirebaseGradleFile(
+      appGradle,
+      projectRoot: config.projectPath,
+      isSettingsFile: false,
+      report: report,
+    );
   }
 
-  static Future<void> _createIOSFirebaseScript(ProjectConfig config) async {
-    final scriptPath = path.join(config.projectPath, 'ios', 'firebase.sh');
-
-    final file = File(scriptPath);
-
-    /// Create iOS flavor configuration and GoogleService-Info.plist for each environment.
-    await file.writeAsString(CommonTemplates.firebaseSh());
-
-    // IMPORTANT: make script executable
-    await Process.run('chmod', ['+x', scriptPath]);
+  static Future<void> _patchFirebaseGradleFile(
+    File file, {
+    required String projectRoot,
+    required bool isSettingsFile,
+    required SetupChangeReport report,
+  }) async {
+    final before = await file.readAsString();
+    final String updated;
+    try {
+      updated = ensureFirebaseGradlePlugins(
+        before,
+        isKotlinDsl: file.path.endsWith('.kts'),
+        isSettingsFile: isSettingsFile,
+      );
+    } on FormatException catch (error) {
+      throw SetupException('${file.path}: ${error.message}');
+    }
+    final relative = path.relative(file.path, from: projectRoot);
+    if (updated == before) {
+      report.skipped.add(relative);
+      return;
+    }
+    await file.writeAsString(updated);
+    report.written.add(relative);
   }
 
-  static String _getGoogleServicesTemplate(String packageName) {
-    return '''{
-  "project_info": {
-    "project_number": "YOUR_PROJECT_NUMBER",
-    "project_id": "YOUR_PROJECT_ID",
-    "storage_bucket": "YOUR_STORAGE_BUCKET"
-  },
-  "client": [
-    {
-      "client_info": {
-        /// Create the ios/firebase.sh script and make it executable.
-        "mobilesdk_app_id": "YOUR_APP_ID",
-        "android_client_info": {
-          "package_name": "$packageName"
-        }
+  static File? _firstExistingFile(List<String> candidates) {
+    for (final candidate in candidates) {
+      final file = File(candidate);
+      if (file.existsSync()) {
+        return file;
       }
     }
-  ]
-}''';
+    return null;
   }
 
-  static String _getGoogleServicePlistTemplate(String bundleId) {
-    return '''<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-        /// Get a template for google-services.json for [packageName].
-<dict>
-	<key>CLIENT_ID</key>
-	<string>YOUR_CLIENT_ID</string>
-	<key>REVERSED_CLIENT_ID</key>
-	<string>YOUR_REVERSED_CLIENT_ID</string>
-	<key>BUNDLE_ID</key>
-	<string>$bundleId</string>
-	<key>PROJECT_ID</key>
-	<string>YOUR_PROJECT_ID</string>
-	<key>STORAGE_BUCKET</key>
-	<string>YOUR_STORAGE_BUCKET</string>
-	<key>IS_ADS_ENABLED</key>
-	<false></false>
-	<key>IS_ANALYTICS_ENABLED</key>
-	<false></false>
-	<key>IS_APPINVITE_ENABLED</key>
-	<true></true>
-	<key>IS_GCM_ENABLED</key>
-	<true></true>
-	<key>IS_SIGNIN_ENABLED</key>
-        /// Get a template for GoogleService-Info.plist for [bundleId].
-	<true></true>
-	<key>GOOGLE_APP_ID</key>
-	<string>YOUR_GOOGLE_APP_ID</string>
-</dict>
-</plist>''';
+  static Future<bool> _patchIosAppDelegate(ProjectConfig config) async {
+    final iosRunnerPath = path.join(config.projectPath, 'ios', 'Runner');
+    final swiftAppDelegate = File(
+      path.join(iosRunnerPath, 'AppDelegate.swift'),
+    );
+    final objcAppDelegate = File(path.join(iosRunnerPath, 'AppDelegate.m'));
+    final target = swiftAppDelegate.existsSync()
+        ? swiftAppDelegate
+        : objcAppDelegate.existsSync()
+        ? objcAppDelegate
+        : null;
+    if (target == null) {
+      throw SetupException(
+        'Cannot find iOS AppDelegate. Expected AppDelegate.swift or '
+        'AppDelegate.m inside ios/Runner.',
+      );
+    }
+    final before = await target.readAsString();
+    await setupIOSFirebaseAppDelegate(config);
+    final after = await target.readAsString();
+    return before != after;
   }
 
   static Future<void> _createVSCodeConfigs(ProjectConfig config) async {
@@ -478,229 +613,20 @@ dependencies {
     ProjectConfig config,
     String vscodePath,
   ) async {
-    final launchJson = {
-      'version': '0.2.0',
-      'configurations': [
-        {
-          'name': '[DEV] ${config.appDisplayName}',
-          'request': 'launch',
-          'type': 'dart',
-          'program': 'lib/main_development.dart',
-          'args': [
-            '--flavor',
-            'development',
-            '--target',
-            'lib/main_development.dart',
-          ],
-        },
-        {
-          'name': '[STG] ${config.appDisplayName}',
-
-          /// Create VS Code configuration files (launch.json, tasks.json) for the project.
-          'request': 'launch',
-          'type': 'dart',
-          'program': 'lib/main_staging.dart',
-          'args': ['--flavor', 'staging', '--target', 'lib/main_staging.dart'],
-        },
-        {
-          'name': config.appDisplayName,
-          'request': 'launch',
-          'type': 'dart',
-          'program': 'lib/main_production.dart',
-          'args': [
-            '--flavor',
-            'production',
-            '--target',
-            'lib/main_production.dart',
-          ],
-
-          /// Create .vscode/launch.json for the project.
-        },
-      ],
-    };
-
     final launchFile = File(path.join(vscodePath, 'launch.json'));
-    await launchFile.writeAsString(_formatJson(launchJson));
+    await launchFile.writeAsString(
+      _formatJson(VsCodeConfigBuilder.launchJson(config)),
+    );
   }
 
   static Future<void> _createTasksJson(
     ProjectConfig config,
     String vscodePath,
   ) async {
-    final tasks = {
-      'version': '2.0.0',
-      'tasks': [
-        {
-          'label': 'Generate Resources [ln10]',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': ['gen-l10n'],
-          'group': {'kind': 'build', 'isDefault': true},
-          'presentation': {'reveal': 'silent', 'panel': 'shared'},
-          'detail': 'Generate resources using gen-l10n.',
-        },
-        {
-          'label': 'Synchronize Build Runners',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': [
-            'pub',
-            'run',
-            'build_runner',
-            'build',
-            '--delete-conflicting-outputs',
-          ],
-          'problemMatcher': [],
-          'group': {'kind': 'build', 'isDefault': true},
-          'detail':
-              'Run this task to synchronize freezed and other build runners actions files.',
-        },
-        {
-          'label': 'Build IPA - Production',
-
-          /// Create .vscode/tasks.json for the project.
-          'type': 'shell',
-          'command': 'flutter',
-          'args': [
-            'build',
-            'ipa',
-            '--release',
-            '--flavor',
-            'production',
-            '-t',
-            'lib/main_production.dart',
-          ],
-        },
-        {
-          'label': 'Build IPA - Staging',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': [
-            'build',
-            'ipa',
-            '--release',
-            '--flavor',
-            'staging',
-            '-t',
-            'lib/main_staging.dart',
-          ],
-        },
-        {
-          'label': 'Build APK - Production',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': [
-            'build',
-            'apk',
-            '--split-per-abi',
-            '--release',
-            '--flavor',
-            'production',
-            '-t',
-            'lib/main_production.dart',
-          ],
-        },
-        {
-          'label': 'Build APK - Staging',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': [
-            'build',
-            'apk',
-            '--split-per-abi',
-            '--release',
-            '--flavor',
-            'staging',
-            '-t',
-            'lib/main_staging.dart',
-          ],
-        },
-        {
-          'label': 'Build APK - Development',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': [
-            'build',
-            'apk',
-            '--split-per-abi',
-            '--release',
-            '--flavor',
-            'development',
-            '-t',
-            'lib/main_development.dart',
-          ],
-        },
-        {
-          'label': 'Build AppBundle - Production',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': [
-            'build',
-            'appbundle',
-            '--release',
-            '--flavor',
-            'production',
-            '-t',
-            'lib/main_production.dart',
-          ],
-        },
-        {
-          'label': 'Build AppBundle - Staging',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': [
-            'build',
-            'appbundle',
-            '--release',
-            '--flavor',
-            'staging',
-            '-t',
-            'lib/main_staging.dart',
-          ],
-        },
-        {
-          'label': 'Clean & Get Packages',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': ['clean'],
-          'dependsOn': [],
-          'problemMatcher': [],
-        },
-        {
-          'label': 'Run Development',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': [
-            'run',
-            '--flavor',
-            'development',
-            '-t',
-            'lib/main_development.dart',
-          ],
-        },
-        {
-          'label': 'Run Staging',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': ['run', '--flavor', 'staging', '-t', 'lib/main_staging.dart'],
-        },
-        {
-          'label': 'Run Production',
-          'type': 'shell',
-          'command': 'flutter',
-          'args': [
-            'run',
-            '--flavor',
-            'production',
-            '-t',
-            'lib/main_production.dart',
-          ],
-        },
-      ],
-    };
-
     final tasksFile = File(path.join(vscodePath, 'tasks.json'));
-    await tasksFile.writeAsString(_formatJson(tasks));
+    await tasksFile.writeAsString(
+      _formatJson(VsCodeConfigBuilder.tasksJson(config)),
+    );
   }
 
   static String _formatJson(Map<String, dynamic> json) {
@@ -710,7 +636,7 @@ dependencies {
 
   /// iOS code adjustment for Firebase
   static Future<void> setupIOSFirebaseAppDelegate(ProjectConfig config) async {
-    if (!config.useFirebase) return;
+    if (!config.useFirebase || !config.targetsIos) return;
 
     final iosRunnerPath = path.join(config.projectPath, 'ios', 'Runner');
 
@@ -843,6 +769,16 @@ dependencies {
     }
 
     return Directory.fromUri(uri);
+  }
+
+  /// Copies the package default logo into the generated project as [AppIconConfig.projectAssetPath].
+  static Future<void> copyDefaultAppIcon(ProjectConfig config) async {
+    final source = await AppIconConfig.bundledLogoFile();
+    final destination = File(
+      path.join(config.projectPath, AppIconConfig.projectAssetPath),
+    );
+    await destination.parent.create(recursive: true);
+    await source.copy(destination.path);
   }
 
   // TODO: add ignote g and freezed files in gitignore

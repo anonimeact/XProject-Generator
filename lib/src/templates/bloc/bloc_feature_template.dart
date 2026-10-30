@@ -406,6 +406,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../routes/routes.dart';
+import '../../../../sessions/user_session.dart';
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
 import '../bloc/splash_state.dart';
@@ -418,9 +419,12 @@ class SplashView extends StatelessWidget {
     return BlocProvider(
       create: (_) => SplashBloc()..add(const SplashStarted()),
       child: BlocListener<SplashBloc, SplashState>(
-        listenWhen: (previous, current) => current.isFinished,
+        listenWhen: (previous, current) =>
+            !previous.isFinished && current.isFinished,
         listener: (context, state) {
-          context.go(Routes.login);
+          context.go(
+            UserSessions.hasActiveSession() ? Routes.home : Routes.login,
+          );
         },
         child: const Scaffold(
           body: Center(
@@ -448,14 +452,20 @@ class SplashView extends StatelessWidget {
 
   static String loginRemoteDatasource() {
     return '''
+${CommonTemplates.loginRemoteDatasourceFileHeader()}
 import 'package:dio_extended/models/api_result.dart';
 
 import '../../../../core/models/global_api_response.dart';
 import '../../../../core/services/base_connection.dart';
 
 class LoginRemoteDatasource {
+  /// BaseConnection() is a singleton, so every datasource shares the same
+  /// auth headers.
   final _connection = BaseConnection();
 
+  /// After a successful login, store the tokens on the shared connection so
+  /// every next request is authenticated and can be refreshed:
+  /// `_connection.saveSession(token: ..., refreshToken: ...)`.
   Future<ApiResult<GlobalApiResponse>> login({
     required String emailOrPhone,
     required String password,
@@ -616,7 +626,10 @@ class LoginState extends Equatable {
     return '''
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/services/base_connection.dart';
+import '../../../../sessions/user_session.dart';
 import '../../data/datasources/login_remote_datasource.dart';
+import '../../data/models/user_model.dart';
 import '../../data/repositories/login_repository_impl.dart';
 import '../../domain/usecases/login_user.dart';
 import 'login_event.dart';
@@ -642,11 +655,28 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
   ) async {
     emit(state.copyWith(isLoading: true, errorMessage: null, isSuccess: false));
     try {
-      final result = await _loginUser(
-        emailOrPhone: event.emailOrPhone,
-        password: event.password,
-      );
-      emit(state.copyWith(isLoading: false, isSuccess: true, result: result));
+${CommonTemplates.demoLoginBypassBlock(
+  phoneExpression: 'event.emailOrPhone',
+  connectionExpression: 'BaseConnection()',
+  realApiSnippet: '''
+    // final result = await _loginUser(
+    //   emailOrPhone: event.emailOrPhone,
+    //   password: event.password,
+    // );
+    // if (!result.isSuccess) {
+    //   emit(state.copyWith(
+    //     isLoading: false,
+    //     isSuccess: false,
+    //     result: result,
+    //     errorMessage: result.message ?? 'Login failed',
+    //   ));
+    //   return;
+    // }
+    // UserSessions.openSession(...); BaseConnection().saveSession(...);
+    // emit(state.copyWith(isLoading: false, isSuccess: true, result: result));
+''',
+  trailingLines: '      emit(state.copyWith(isLoading: false, isSuccess: true));',
+)}
     } catch (e) {
       emit(state.copyWith(isLoading: false, errorMessage: e.toString()));
     }
@@ -656,7 +686,10 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     LoginTogglePassword event,
     Emitter<LoginState> emit,
   ) {
-    emit(state.copyWith(isPasswordObscured: !state.isPasswordObscured));
+    emit(state.copyWith(
+      isPasswordObscured: !state.isPasswordObscured,
+      errorMessage: state.errorMessage,
+    ));
   }
 }
 ''';
@@ -666,6 +699,9 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     return '''
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/services/base_connection.dart';
+import '../../../../sessions/user_session.dart';
+import '../../data/models/user_model.dart';
 import '../../data/datasources/login_remote_datasource.dart';
 import 'login_event.dart';
 import 'login_state.dart';
@@ -684,11 +720,21 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
   ) async {
     emit(state.copyWith(isLoading: true, errorMessage: null, isSuccess: false));
     try {
-      final result = await remoteDatasource.login(
-        emailOrPhone: event.emailOrPhone,
-        password: event.password,
-      );
-      emit(state.copyWith(isLoading: false, isSuccess: true, result: result));
+${CommonTemplates.demoLoginBypassBlock(
+  phoneExpression: 'event.emailOrPhone',
+  connectionExpression: 'BaseConnection()',
+  realApiSnippet: '''
+    // final result = await remoteDatasource.login(
+    //   emailOrPhone: event.emailOrPhone,
+    //   password: event.password,
+    // );
+    // if (!result.isSuccess) {
+    //   throw StateError(result.message ?? 'Login failed');
+    // }
+    // UserSessions.openSession(...); BaseConnection().saveSession(...);
+''',
+  trailingLines: '      emit(state.copyWith(isLoading: false, isSuccess: true));',
+)}
     } catch (e) {
       emit(state.copyWith(isLoading: false, errorMessage: e.toString()));
     }
@@ -698,7 +744,10 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     LoginTogglePassword event,
     Emitter<LoginState> emit,
   ) {
-    emit(state.copyWith(isPasswordObscured: !state.isPasswordObscured));
+    emit(state.copyWith(
+      isPasswordObscured: !state.isPasswordObscured,
+      errorMessage: state.errorMessage,
+    ));
   }
 }
 ''';
@@ -741,18 +790,23 @@ class _LoginViewState extends State<LoginView> {
     return BlocProvider(
       create: (_) => LoginBloc(),
       child: BlocConsumer<LoginBloc, LoginState>(
+        listenWhen: (previous, current) =>
+            previous.isSuccess != current.isSuccess ||
+            previous.errorMessage != current.errorMessage,
         listener: (context, state) {
-          if (state.result != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Result: \${state.result}')),
-            );
-          }
+          // DEMO: success is set locally in login_bloc.dart (no API call).
           if (state.isSuccess) context.go(Routes.home);
-          if (state.errorMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.errorMessage!)),
-            );
-          }
+          // REAL API: uncomment to show API/network failures and result snackbars.
+          // if (state.result != null) {
+          //   ScaffoldMessenger.of(context).showSnackBar(
+          //     SnackBar(content: Text('Result: \${state.result}')),
+          //   );
+          // }
+          // if (state.errorMessage != null) {
+          //   ScaffoldMessenger.of(context).showSnackBar(
+          //     SnackBar(content: Text(state.errorMessage!)),
+          //   );
+          // }
         },
         builder: (context, state) {
           return AuthScaffold(
@@ -854,13 +908,18 @@ class _LoginViewState extends State<LoginView> {
     return BlocProvider(
       create: (_) => LoginBloc(remoteDatasource: LoginRemoteDatasource()),
       child: BlocConsumer<LoginBloc, LoginState>(
+        listenWhen: (previous, current) =>
+            previous.isSuccess != current.isSuccess ||
+            previous.errorMessage != current.errorMessage,
         listener: (context, state) {
+          // DEMO: success is set locally in login_bloc.dart (no API call).
           if (state.isSuccess) context.go(Routes.home);
-          if (state.errorMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.errorMessage!)),
-            );
-          }
+          // REAL API: uncomment to show login error messages from the bloc.
+          // if (state.errorMessage != null) {
+          //   ScaffoldMessenger.of(context).showSnackBar(
+          //     SnackBar(content: Text(state.errorMessage!)),
+          //   );
+          // }
         },
         builder: (context, state) {
           return AuthScaffold(
@@ -928,8 +987,12 @@ class _LoginViewState extends State<LoginView> {
     return '''
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app.dart';
+import '../../../../core/services/base_connection.dart';
+import '../../../../routes/routes.dart';
+import '../../../../sessions/user_session.dart';
 import '../widgets/home_shell.dart';
 
 class HomeView extends StatelessWidget {
@@ -940,6 +1003,9 @@ class HomeView extends StatelessWidget {
     return HomeShell(
       onToggleTheme: () => context.read<AppCubit>().toggleTheme(),
       onToggleLanguage: () => context.read<AppCubit>().toggleLanguage(),
+      onLogout: () {
+${CommonTemplates.goRouterLogoutBody(connectionExpression: 'BaseConnection()')}
+      },
     );
   }
 }

@@ -59,27 +59,29 @@ dart pub global activate xproject_generator
 # 2. Create a new project (interactive)
 xproject
 
-# 3. Run it
+# The CLI shows step progress (0–100%) while scaffolding, then runs
+# flutter pub get + build_runner in the project for you.
+
+# 3. Finish setup using GUIDE.md, then run
 cd <your_project_name>
-flutter pub get
 flutter run --flavor development -t lib/main_development.dart
 ```
 
-> The interactive wizard asks for app name, package IDs, Firebase, state management, architecture, and whether to encrypt `.env` files.
+> The interactive wizard asks for app name, package IDs, **platform targets**, **state management**, architecture (Bloc/Riverpod), **Firebase**, secret key, and optional **CI/CD** (GitLab or GitHub; test-only or deploy via Fastlane; GitLab supports shared, Docker, or **self-hosted shell** runners e.g. Mac Mini). **`GUIDE.md`** is an English setup guide.
 
 <div align="center">
 
 ```text
 🚀 XProject - Flutter Project Generator
 
-✔ App display name (e.g. Test App) · My App
-✔ Project name (snake_case) · my_app
-✔ Android package (e.g., com.example.app) · com.example.my_app
-✔ iOS bundle ID · com.example.my_app
-✔ Use Firebase? (Y/n): · n
-✔ Select state management · Riverpod
-✔ Select architecture · Clean Code
-✔ Use Secret Key (Generator Package)? (Y/n): · y
+… wizard prompts …
+
+📦 ⠹ Creating Flutter project...                         18%
+✓ 📦 Creating Flutter project...                      (2.1s)
+📁 ⠼ Generating project structure...                    42%
+✓ ⚙ Resolving packages and running code generation...  (15.3s)
+
+✅ Project created successfully
 ```
 
 </div>
@@ -93,10 +95,13 @@ flutter run --flavor development -t lib/main_development.dart
 <td width="33%" valign="top">
 
 ### Scaffolding
-- Interactive project wizard
+- Interactive project wizard (platform target, optional **GitLab CI** or **GitHub Actions**)
+- **Create progress** — four steps with spinner, icon, and overall **0–100%**; step duration when done
+- **Post-create** — `flutter pub get` + `build_runner` in the new project
 - Add features to existing apps
-- `flutter create` + dependency wiring
-- `.vscode` tasks & launch configs
+- `flutter create --platforms` + dependency wiring
+- `.vscode` tasks & launch configs (run/build per flavor)
+- **`GUIDE.md`** — English setup guide (checklists; TOC links work in VS Code preview)
 
 </td>
 <td width="33%" valign="top">
@@ -238,6 +243,12 @@ App-wide theme/locale handled by an `AppCubit`.
 | --- | --- |
 | `xproject` | Start the interactive project wizard |
 | `xproject create` | Explicitly create a new project |
+| `xproject setup` | Menu of integrations not yet installed (run inside the project) |
+| `xproject setup firebase` | Add Firebase after create answered no |
+| `xproject setup secret-key` | Turn on encrypted `.env` loading (`setup secret` is the same) |
+| `xproject setup ci` | Add GitLab CI or GitHub Actions (`setup cicd` is the same) |
+| `xproject setup platforms` | Add Flutter platforms that were not selected at create |
+| `xproject setup guide` | Regenerate **`GUIDE.md`** (English) |
 | `xproject --feature <name>` | Generate a feature in the current project |
 | `xproject -f <name>` | Short form of `--feature` |
 | `xproject --version` | Print the CLI version |
@@ -250,6 +261,20 @@ xproject --feature authentication
 
 > When generating a feature, the tool detects your state management from `pubspec.yaml`/`lib/` usage and your architecture from the presence of `domain/` or `data/repositories/` folders, then runs `build_runner` if codegen is needed.
 
+Setup commands read the current project (name, package, state management, platforms, and which integrations are already on). They do not ask those questions again. Run them from the generated app directory:
+
+```bash
+cd <your_project_name>
+xproject setup                 # menu
+xproject setup firebase        # only if create answered no to Firebase
+xproject setup secret-key
+xproject setup ci
+xproject setup platforms
+xproject setup guide           # regenerate GUIDE.md only
+```
+
+`setup firebase` does not replace a `google-services.json` or `GoogleService-Info.plist` you already downloaded. `setup secret-key` does not rewrite `.env.*` and does not invent a real secret; it writes a stub `lib/core/config/secretkey.dart` that throws until you replace it. `setup ci` asks before overwriting an existing pipeline. After setup, **`GUIDE.md`** is regenerated and the CLI notes which integration was updated (checklist in Part 2).
+
 ---
 
 ## What a generated project contains
@@ -257,15 +282,26 @@ xproject --feature authentication
 - `lib/` with `app.dart`, environment-specific `main_*.dart`, routes, theme, l10n, sessions, and `core/`
 - `lib/features/<feature>/` — views, controllers/notifiers/blocs, bindings/providers, and feature-local widgets
 - `.env.development`, `.env.staging`, `.env.production`
+- **`GUIDE.md`** — English setup guide; regenerated after `xproject setup`
+- **`README.md`** (in generated project) — quick pointer to `GUIDE.md`
+- Optional CI/CD: **`.gitlab-ci.yml`** + `ci/Dockerfile` (GitLab) or **`.github/workflows/flutter_ci.yml`** (GitHub Actions), plus `fastlane/` when deployment is enabled
 - Android & iOS flavor configuration
 - `.vscode/` tasks and launch helpers
 
 ```bash
 cd <your_project_name>
-flutter pub get
-# If using codegen (freezed / riverpod):
-dart run build_runner build --delete-conflicting-outputs
+# pub get + build_runner already ran during `xproject create`; repeat only if needed:
+# flutter pub get
+# dart run build_runner build --delete-conflicting-outputs
 ```
+
+Follow **`GUIDE.md`** for env files, flavors, Firebase, and the rest. Quick run after checklist:
+
+```bash
+flutter run --flavor development -t lib/main_development.dart
+```
+
+Or use **Run and Debug** in VS Code (`[DEV]` / `[STG]` / production) as described in GUIDE Part 2.
 
 ---
 
@@ -276,6 +312,7 @@ The generators can also be used directly from Dart (illustrative):
 ```dart
 import 'package:xproject_generator/xproject_generator.dart';
 import 'package:xproject_generator/xfeature_generator.dart';
+import 'package:xproject_generator/xsetup_generator.dart';
 
 Future<void> main() async {
   // Create a new project (interactive by default)
@@ -283,6 +320,14 @@ Future<void> main() async {
 
   // Add a feature to an existing project
   await FeatureGenerator().add('authentication');
+
+  // Add an integration that was skipped at create time.
+  // Run with the working directory set to that Flutter project.
+  await SetupGenerator().firebase();
+  await SetupGenerator().secretKey();
+  await SetupGenerator().ciCd();
+  await SetupGenerator().platforms();
+  await SetupGenerator().regenerateGuide();
 }
 ```
 
@@ -295,7 +340,11 @@ Future<void> main() async {
 | [`bin/xproject.dart`](bin/xproject.dart) | CLI entrypoint |
 | [`lib/xproject_generator.dart`](lib/xproject_generator.dart) | Interactive project generator |
 | [`lib/xfeature_generator.dart`](lib/xfeature_generator.dart) | Feature generator for existing projects |
+| [`lib/xsetup_generator.dart`](lib/xsetup_generator.dart) | Post-create Firebase, secret key, CI/CD, and platforms |
+| [`lib/src/post_create_codegen.dart`](lib/src/post_create_codegen.dart) | `flutter pub get` + `build_runner` after create |
+| [`lib/src/cli_step_progress.dart`](lib/src/cli_step_progress.dart) | Terminal progress during create |
 | [`lib/src/templates`](lib/src/templates) | Template code for GetX, Riverpod, and Bloc |
+| [`CHANGELOG.md`](CHANGELOG.md) | Version history (latest **1.1.0**) |
 | [`pubspec.yaml`](pubspec.yaml) | Package metadata |
 
 ---
@@ -307,7 +356,7 @@ Future<void> main() async {
 
 <br/>
 
-This happens when the Flutter stable SDK pins an older `meta` while the newest `riverpod_generator` requires a newer `analyzer`. Generated Riverpod projects pin a compatible codegen stack (`riverpod_generator 4.0.3` with analyzer-9-compatible `json_serializable`/`json_annotation`) to avoid this. Make sure you're on a recent Flutter **stable** channel and run `flutter pub get` again.
+This usually means an outdated Flutter SDK or a stale `pubspec.lock`. Generated Riverpod projects use `riverpod_generator ^4.0.9` with `build_runner ^2.16.0` (newer `build_runner` 2.17+ is not yet compatible with `riverpod_generator`). Upgrade Flutter **stable**, delete `pubspec.lock`, then run `flutter pub get` again.
 
 </details>
 
@@ -316,12 +365,18 @@ This happens when the Flutter stable SDK pins an older `meta` while the newest `
 
 <br/>
 
-Answer **yes** to the Firebase prompt during creation, then add your platform files:
+Answer **yes** to the Firebase prompt during creation, or from the project directory run:
 
-- `android/app/google-services.json`
-- `ios/Runner/GoogleService-Info.plist`
+```bash
+xproject setup firebase
+```
 
-The iOS flavor script lives at `ios/firebase.sh`; follow the on-screen Xcode steps printed after generation.
+Then replace the placeholders (these files are not overwritten if they already exist):
+
+- `android/app/src/<flavor>/google-services.json` for `development`, `staging`, and `production`
+- `ios/config/<flavor>/GoogleService-Info.plist`
+
+The iOS flavor script lives at `ios/firebase.sh`. In Xcode, add a Run Script phase that runs it before Copy Bundle Resources. `xproject setup secret-key` and `xproject setup ci` cover the other optional prompts from create.
 
 </details>
 
@@ -331,6 +386,28 @@ The iOS flavor script lives at `ios/firebase.sh`; follow the on-screen Xcode ste
 <br/>
 
 Not automatically — the scaffolding differs per state manager. Create a new project with the desired option, or migrate manually.
+
+</details>
+
+<details>
+<summary><b>Android build fails after upgrading to AGP 8+ / 9+ (custom resource values disabled)</b></summary>
+
+<br/>
+
+Newer Android Gradle Plugin versions disable `resValue()` generation unless you enable it. Generated projects include `buildFeatures { resValues = true }` (or `resValues true` in Groovy) and set `android:label="@string/app_name"` in the manifest so flavor-specific app names work.
+
+If you created a project with an older generator version, add the same `buildFeatures` block to `android/app/build.gradle(.kts)` and point the manifest label at `@string/app_name`.
+
+</details>
+
+<details>
+<summary><b>Built-in Kotlin (AGP 9) and <code>gradle.properties</code> flags</b></summary>
+
+<br/>
+
+Generated Android projects follow Flutter’s [built-in Kotlin migration for app developers](https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers): the `:app` module does not apply the Kotlin Gradle Plugin directly, and uses `kotlin { compilerOptions { … } }` with JVM 17 when the Flutter template provides it.
+
+`android/gradle.properties` includes `android.newDsl=false` and `android.builtInKotlin=false` (Flutter’s transitional default). After your app and its Flutter plugins support built-in Kotlin, set `android.builtInKotlin=true` and run `flutter build apk` to validate. If a plugin still applies KGP and breaks the build, use the [report template](https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin/for-app-developers#report-incompatible-kotlin-gradle-plugin-usage-to-plugin-authors) on the plugin’s repository.
 
 </details>
 
